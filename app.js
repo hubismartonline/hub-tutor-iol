@@ -173,6 +173,13 @@ function sair() {
   document.getElementById("view-login").style.display = "flex";
   irParaEtapa("login");
   document.getElementById("login-senha").value = "";
+
+  // Limpa o estado de "Meus Alunos" pra não vazar dados do tutor
+  // anterior entre sessões (mesmo padrão do Hub do Aluno).
+  document.getElementById("alunos-tbody").innerHTML = "";
+  document.getElementById("alunos-tabela").style.display = "none";
+  document.getElementById("alunos-vazio").style.display = "none";
+  document.getElementById("alunos-loading").style.display = "block";
 }
 
 // -------------------------------------------------------
