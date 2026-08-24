@@ -23,12 +23,23 @@ function esconderErro(idErro) {
   document.getElementById(idErro).style.display = "none";
 }
 
-async function chamarBackend(acao, dados) {
-  const resp = await fetch(TUTOR_AUTH_URL, {
-    method: "POST",
-    body: JSON.stringify({ acao, ...dados })
+function chamarBackend(acao, dados) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", TUTOR_AUTH_URL, true);
+    xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
+    xhr.onload = function () {
+      try {
+        resolve(JSON.parse(xhr.responseText));
+      } catch (e) {
+        reject(new Error("Resposta inválida do servidor."));
+      }
+    };
+    xhr.onerror = function () {
+      reject(new Error("Falha de rede."));
+    };
+    xhr.send(JSON.stringify({ acao, ...dados }));
   });
-  return resp.json();
 }
 
 // -------------------------------------------------------
