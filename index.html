@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hub do Tutor — Ismart Online</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="view-login" class="login-screen">
+  <div class="login-card">
+    <div class="brand-row">
+      <div class="brand-mark">🦉</div>
+      <div class="brand-name">Hub do Tutor</div>
+    </div>
+
+    <!-- Estado 1: login normal -->
+    <div id="etapa-login">
+      <h1>Entrar</h1>
+      <p class="sub">Use o e-mail que você usa aqui no Ismart.</p>
+      <label for="login-email">E-mail</label>
+      <input id="login-email" type="text" placeholder="seuemail.ismart@gmail.com" autocomplete="username">
+      <label for="login-senha">Senha</label>
+      <input id="login-senha" type="password" placeholder="••••••••" autocomplete="current-password">
+      <div id="login-erro" class="erro" style="display:none"></div>
+      <button class="btn full" id="btn-login" onclick="fazerLogin()">Entrar</button>
+      <div class="login-links">
+        <a href="#" onclick="irParaEtapa('primeiro-acesso');return false">Primeiro acesso</a>
+        <a href="#" onclick="irParaEtapa('esqueci-senha');return false">Esqueci minha senha</a>
+      </div>
+    </div>
+
+    <!-- Estado 2: primeiro acesso — pedir código -->
+    <div id="etapa-primeiro-acesso" style="display:none">
+      <h1>Primeiro acesso</h1>
+      <p class="sub">Digite seu e-mail — vamos mandar um código de confirmação.</p>
+      <label for="pa-email">E-mail</label>
+      <input id="pa-email" type="text" placeholder="seuemail.ismart@gmail.com">
+      <div id="pa-erro" class="erro" style="display:none"></div>
+      <button class="btn full" onclick="solicitarCodigoPrimeiroAcesso()">Enviar código</button>
+      <div class="login-links"><a href="#" onclick="irParaEtapa('login');return false">← Voltar pro login</a></div>
+    </div>
+
+    <!-- Estado 3: primeiro acesso — confirmar código + criar senha -->
+    <div id="etapa-criar-senha" style="display:none">
+      <h1>Confirme o código</h1>
+      <p class="sub" id="pa-email-mascarado-txt">Enviamos um código para o seu e-mail.</p>
+      <label for="pa-codigo">Código de 6 dígitos</label>
+      <input id="pa-codigo" type="text" maxlength="6" placeholder="000000">
+      <label for="pa-senha">Crie sua senha (mín. 6 caracteres)</label>
+      <input id="pa-senha" type="password" placeholder="••••••••">
+      <div id="cs-erro" class="erro" style="display:none"></div>
+      <button class="btn full" onclick="confirmarECriarSenha()">Confirmar e criar senha</button>
+      <div class="login-links"><a href="#" onclick="irParaEtapa('login');return false">← Voltar pro login</a></div>
+    </div>
+
+    <!-- Estado 4: esqueci senha — pedir código -->
+    <div id="etapa-esqueci-senha" style="display:none">
+      <h1>Esqueci minha senha</h1>
+      <p class="sub">Digite seu e-mail — vamos mandar um código de recuperação.</p>
+      <label for="es-email">E-mail</label>
+      <input id="es-email" type="text" placeholder="seuemail.ismart@gmail.com">
+      <div id="es-erro" class="erro" style="display:none"></div>
+      <button class="btn full" onclick="solicitarRecuperacao()">Enviar código</button>
+      <div class="login-links"><a href="#" onclick="irParaEtapa('login');return false">← Voltar pro login</a></div>
+    </div>
+
+    <!-- Estado 5: esqueci senha — confirmar código + redefinir -->
+    <div id="etapa-redefinir-senha" style="display:none">
+      <h1>Confirme o código</h1>
+      <p class="sub" id="es-email-mascarado-txt">Enviamos um código para o seu e-mail.</p>
+      <label for="rs-codigo">Código de 6 dígitos</label>
+      <input id="rs-codigo" type="text" maxlength="6" placeholder="000000">
+      <label for="rs-senha">Nova senha (mín. 6 caracteres)</label>
+      <input id="rs-senha" type="password" placeholder="••••••••">
+      <div id="rs-erro" class="erro" style="display:none"></div>
+      <button class="btn full" onclick="confirmarERedefinirSenha()">Confirmar e redefinir</button>
+      <div class="login-links"><a href="#" onclick="irParaEtapa('login');return false">← Voltar pro login</a></div>
+    </div>
+
+    <div class="login-footnote">Ismart Online</div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="view-app" style="display:none">
+  <div class="app-shell">
+    <div class="sidebar">
+      <div class="brand-row"><div class="brand-mark">🦉</div><div class="brand-name">Hub do Tutor</div></div>
+      <div class="tutor-card">
+        <div class="name" id="tutor-nome">—</div>
+        <div class="meta" id="tutor-meta">—</div>
+      </div>
+
+      <div class="nav-item active" data-page="alunos" onclick="irPara('alunos')">🧑‍🎓 Meus Alunos</div>
+      <div class="nav-item disabled" title="Ainda não disponível">📝 Prestação de contas <span class="em-breve">em breve</span></div>
+      <div class="nav-item disabled" title="Ainda não disponível">📌 Foco da Semana <span class="em-breve">em breve</span></div>
+      <div class="nav-item disabled" title="Ainda não disponível">🗂️ Prontuário do aluno <span class="em-breve">em breve</span></div>
+      <div class="nav-item disabled" title="Ainda não disponível">📊 Dashboard da turma <span class="em-breve">em breve</span></div>
+
+      <button class="btn ghost full" style="margin-top:auto" onclick="sair()">Sair</button>
+    </div>
+
+    <div class="main">
+      <div id="page-alunos" class="page">
+        <div class="page-header">
+          <h2>Meus alunos</h2>
+          <p>Alunos ativos vinculados a você na Página1.</p>
+        </div>
+        <div id="alunos-loading" class="hint">Carregando...</div>
+        <div id="alunos-vazio" class="hint" style="display:none">Nenhum aluno encontrado com seu nome na coluna Tutor(a) da Página1.</div>
+        <table id="alunos-tabela" style="display:none">
+          <thead><tr><th>RA</th><th>Nome</th><th>Série</th><th>Cidade</th></tr></thead>
+          <tbody id="alunos-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
