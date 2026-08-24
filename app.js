@@ -2,7 +2,7 @@
 //  Hub do Tutor — app.js
 //  Troque a URL abaixo pela URL do seu TUTOR_AUTH_SCRIPT publicado.
 // =============================================================
-const TUTOR_AUTH_URL = "https://script.google.com/macros/s/AKfycbwngsYR01zkmC3fCfYmomOBSgcwwmi_xCC-vuCKumHXRMoWsI_XyI_iY9rfMs1eJN5OAA/exec";
+const TUTOR_AUTH_URL = "https://script.google.com/macros/s/AKfycbzKIgfp4gWuxZcMUL_P4U1pUdLhctyguVRjSJcPzvI5sYJG9M4Dn53Qn15528r-DLV4hw/exec";
 
 let sessao = { email: "", token: "" };
 
