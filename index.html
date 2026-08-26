@@ -100,7 +100,7 @@
       <div class="nav-item active" data-page="alunos" onclick="irPara('alunos')">🧑‍🎓 Meus Alunos</div>
       <div class="nav-item disabled" title="Ainda não disponível">📝 Prestação de contas <span class="em-breve">em breve</span></div>
       <div class="nav-item disabled" title="Ainda não disponível">📌 Foco da Semana <span class="em-breve">em breve</span></div>
-      <div class="nav-item disabled" title="Ainda não disponível">🗂️ Prontuário do aluno <span class="em-breve">em breve</span></div>
+      <div class="nav-item" data-page="prontuario" onclick="irPara('prontuario')">🗂️ Prontuário do aluno</div>
       <div class="nav-item disabled" title="Ainda não disponível">📊 Dashboard da turma <span class="em-breve">em breve</span></div>
 
       <button class="btn ghost full" style="margin-top:auto" onclick="sair()">Sair</button>
@@ -118,6 +118,42 @@
           <thead><tr><th>RA</th><th>Nome</th><th>Série</th><th>Cidade</th></tr></thead>
           <tbody id="alunos-tbody"></tbody>
         </table>
+      </div>
+
+      <!-- ===================== PRONTUÁRIO DO ALUNO ===================== -->
+      <div id="page-prontuario" class="page" style="display:none">
+        <div class="page-header">
+          <h2>Prontuário do aluno</h2>
+          <p>Histórico de contatos por aluno — fica registrado mesmo depois de resolvido.</p>
+        </div>
+
+        <div class="prontuario-layout">
+          <!-- Coluna da esquerda: lista (tutor) ou busca (coordenação) -->
+          <div>
+            <!-- Tutor: lista os alunos alocados a ele (mesma fonte do Meus Alunos) -->
+            <div id="prontuario-lista-tutor" class="card" style="display:none">
+              <h3>Seus alunos</h3>
+              <p class="hint">Selecione um aluno para ver ou registrar no prontuário.</p>
+              <div id="prontuario-alunos-loading" class="hint">Carregando...</div>
+              <div id="prontuario-alunos-lista" class="aluno-list"></div>
+            </div>
+
+            <!-- Coordenação: busca por nome ou RA, qualquer aluno -->
+            <div id="prontuario-busca-coordenacao" class="card" style="display:none">
+              <h3>Buscar aluno</h3>
+              <p class="hint">Busque por nome ou RA para ver o prontuário de qualquer aluno.</p>
+              <label for="prontuario-busca-input">Nome ou RA</label>
+              <input id="prontuario-busca-input" type="text" placeholder="Ex.: Ana Julia ou 202222344">
+              <button class="btn ghost full" style="margin-top:10px" onclick="buscarAlunosProntuarioCoordenacao()">Buscar</button>
+              <div id="prontuario-busca-resultado" class="aluno-list" style="margin-top:12px"></div>
+            </div>
+          </div>
+
+          <!-- Coluna da direita: detalhe do prontuário do aluno selecionado -->
+          <div id="prontuario-detail" class="card">
+            <p class="hint">Selecione um aluno para ver o prontuário.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
