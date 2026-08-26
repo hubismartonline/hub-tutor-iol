@@ -122,6 +122,80 @@ th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spac
 td { padding: 12px 16px; font-size: 13.5px; border-top: 1px solid var(--border); }
 tr:hover td { background: #FAFBFD; }
 
+/* ===================== PRONTUÁRIO DO ALUNO ===================== */
+.card {
+  background: var(--surface); border-radius: 12px; padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,37,97,0.06); margin-bottom: 16px;
+}
+.card h3 { margin: 0 0 4px; font-size: 15px; color: var(--navy); }
+
+.prontuario-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+
+.aluno-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.aluno-item {
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.aluno-item:hover { border-color: var(--blue); background: #F0F9FF; }
+.aluno-item.active { border-color: var(--blue); background: #E8F7FF; }
+.aluno-item .nome { font-weight: 700; font-size: 13.5px; color: var(--navy); display:flex; align-items:center; gap:6px; }
+.aluno-item .sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px; background: #FFF6D9; color: #8a6d00;
+}
+
+.prontuario-aluno-header h2 { margin: 0 0 4px; font-size: 18px; color: var(--navy); }
+.prontuario-aluno-header p.hint { margin: 0 0 14px; }
+
+.destaque-aluno-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+
+textarea {
+  width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+  font-size: 13.5px; font-family: 'Lato', sans-serif; color: var(--text); outline: none;
+  resize: vertical; transition: border-color .15s;
+}
+textarea:focus { border-color: var(--blue); }
+select {
+  width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border);
+  font-size: 13.5px; font-family: 'Lato', sans-serif; color: var(--text); background: #fff;
+  outline: none; transition: border-color .15s;
+}
+select:focus { border-color: var(--blue); }
+
+.btn.small { padding: 7px 12px; font-size: 12.5px; }
+.btn.secondary { background: #F0F4FA; color: var(--navy); }
+.btn.secondary:hover { background: #E3E9F2; }
+
+.destaque-checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.destaque-checkbox-row input[type="checkbox"] { width: auto; }
+.destaque-checkbox-row label { margin: 0; text-transform: none; font-weight: 600; font-size: 13px; letter-spacing: 0; }
+
+.ressalva-box {
+  margin-top: 20px; padding: 16px; border-radius: 10px;
+  background: #FDF1F5; border: 1px solid #F6C9D9;
+}
+.ressalva-box h3 { color: var(--pink); font-size: 14px; margin: 0 0 6px; }
+
+.timeline-list { margin-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+.timeline-item {
+  border-left: 3px solid var(--blue); padding: 8px 0 8px 14px;
+}
+.timeline-item.ressalva { border-left-color: var(--pink); }
+.timeline-date { font-size: 11.5px; font-weight: 700; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.timeline-tag {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+  background: #F0F4FA; color: var(--navy); padding: 2px 8px; border-radius: 20px;
+}
+.timeline-tag.ressalva { background: #FDECEC; color: var(--pink); }
+.timeline-tag.destaque { background: #FFF6D9; color: #8a6d00; }
+.timeline-texto { font-size: 13.5px; color: var(--text); margin-top: 4px; white-space: pre-line; }
+
+@media (max-width: 720px) {
+  .prontuario-layout { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 720px) {
   .app-shell { flex-direction: column; }
   .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; }
