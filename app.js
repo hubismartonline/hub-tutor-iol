@@ -228,7 +228,7 @@ async function carregarMeusAlunos() {
         <td>${a.ra}</td>
         <td>${a.nome}</td>
         <td>${a.serie}</td>
-        <td>${a.cidade}</td>
+        <td>${a.praca}</td>
       </tr>
     `).join("");
     tabela.style.display = "table";
@@ -344,7 +344,7 @@ function renderListaAlunosProntuario(alunos, containerId) {
   container.innerHTML = alunos.map(a => `
     <div class="aluno-item ${a.ra === prontuarioAlunoAtualRA ? "active" : ""}" onclick="selecionarAlunoProntuario('${a.ra}')">
       <div class="nome">${escapeHtml(a.nome)}</div>
-      <div class="sub">${escapeHtml(a.serie || "")}${a.cidade ? " · " + escapeHtml(a.cidade) : ""}${a.tutor ? " · " + escapeHtml(a.tutor) : ""}</div>
+      <div class="sub">${escapeHtml(a.serie || "")}${a.praca ? " · " + escapeHtml(a.praca) : ""}${a.tutor ? " · " + escapeHtml(a.tutor) : ""}</div>
     </div>
   `).join("");
 }
@@ -384,7 +384,7 @@ function renderProntuarioDetail(data) {
   det.innerHTML = `
     <div class="prontuario-aluno-header">
       <h2>${escapeHtml(aluno.nome)}</h2>
-      <p class="hint">${escapeHtml(aluno.serie)} · ${escapeHtml(aluno.cidade)} · Tutor(a): ${escapeHtml(aluno.tutor)}</p>
+      <p class="hint">${escapeHtml(aluno.serie)} · ${escapeHtml(aluno.praca)} · Tutor(a): ${escapeHtml(aluno.tutor)}</p>
     </div>
 
     <div class="destaque-aluno-row">
