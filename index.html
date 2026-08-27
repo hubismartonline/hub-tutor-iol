@@ -101,7 +101,7 @@
       <div class="nav-item" data-page="contas" onclick="irPara('contas')">📝 Prestação de contas</div>
       <div class="nav-item disabled" title="Ainda não disponível">📌 Foco da Semana <span class="em-breve">em breve</span></div>
       <div class="nav-item" data-page="prontuario" onclick="irPara('prontuario')">🗂️ Prontuário do aluno</div>
-      <div class="nav-item disabled" title="Ainda não disponível">📊 Dashboard da turma <span class="em-breve">em breve</span></div>
+      <div class="nav-item" data-page="dashboard" onclick="irPara('dashboard')">📊 Dashboard da turma</div>
 
       <button class="btn ghost full" style="margin-top:auto" onclick="sair()">Sair</button>
     </div>
@@ -200,6 +200,37 @@
           <!-- Coluna da direita: detalhe do prontuário do aluno selecionado -->
           <div id="prontuario-detail" class="card">
             <p class="hint">Selecione um aluno para ver o prontuário.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== DASHBOARD DA TURMA ===================== -->
+      <div id="page-dashboard" class="page" style="display:none">
+        <div class="page-header">
+          <h2>Dashboard da turma</h2>
+          <p>Andamento dos alunos sob sua responsabilidade.</p>
+        </div>
+
+        <div id="dashboard-loading" class="hint">Carregando...</div>
+
+        <div id="dashboard-conteudo" style="display:none">
+          <div class="stat-grid">
+            <div class="stat-tile"><div class="label">Alunos na turma</div><div class="value" id="dash-total-alunos">—</div></div>
+            <div class="stat-tile"><div class="label">Destaques atuais</div><div class="value" id="dash-destaques">—</div></div>
+            <div class="stat-tile"><div class="label">Sem retorno &gt; 7 dias</div><div class="value" id="dash-sem-retorno">—</div></div>
+            <div class="stat-tile"><div class="label">Prestações enviadas (mês)</div><div class="value" id="dash-prestacoes-mes">—</div></div>
+          </div>
+
+          <div class="card">
+            <h3>Horas lançadas — últimas 4 semanas</h3>
+            <p class="hint">Soma de todos os tipos de serviço, por semana.</p>
+            <svg id="dash-chart" width="100%" height="220" viewBox="0 0 640 220" preserveAspectRatio="xMinYMin meet"></svg>
+          </div>
+
+          <div class="card" id="dash-sem-retorno-card" style="display:none">
+            <h3>Quem precisa de atenção</h3>
+            <p class="hint">Alunos sem nenhum registro no prontuário há mais de 7 dias.</p>
+            <div id="dash-sem-retorno-lista" class="aluno-list"></div>
           </div>
         </div>
       </div>
