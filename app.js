@@ -170,6 +170,8 @@ function entrarNoApp(email, dados) {
   // da coordenação ainda vai entrar com o Painel de coordenação.
   const navContas = document.querySelector('.nav-item[data-page="contas"]');
   if (navContas) navContas.style.display = sessao.tipo === "tutor" ? "" : "none";
+  const navDashboard = document.querySelector('.nav-item[data-page="dashboard"]');
+  if (navDashboard) navDashboard.style.display = sessao.tipo === "tutor" ? "" : "none";
   const navAlunos = document.querySelector('.nav-item[data-page="alunos"]');
 
   if (sessao.tipo === "coordenacao") {
@@ -214,6 +216,14 @@ function sair() {
   document.getElementById("contas-nf-box").style.display = "none";
   document.getElementById("contas-historico-tbody").innerHTML = "";
   document.getElementById("contas-historico-tabela").style.display = "none";
+
+  // Idem pro Dashboard da turma.
+  document.getElementById("dashboard-conteudo").style.display = "none";
+  document.getElementById("dashboard-loading").style.display = "block";
+  document.getElementById("dashboard-loading").textContent = "Carregando...";
+  document.getElementById("dash-chart").innerHTML = "";
+  document.getElementById("dash-sem-retorno-lista").innerHTML = "";
+  document.getElementById("dash-sem-retorno-card").style.display = "none";
 }
 
 // -------------------------------------------------------
@@ -229,6 +239,7 @@ function irPara(pagina) {
 
   if (pagina === "prontuario") iniciarProntuario();
   if (pagina === "contas") iniciarPrestacaoContas();
+  if (pagina === "dashboard") iniciarDashboardTurma();
 }
 
 async function carregarMeusAlunos() {
@@ -838,4 +849,78 @@ async function carregarHistoricoPrestacao() {
   } catch (e) {
     loading.textContent = "Não foi possível conectar. Tente novamente.";
   }
+}
+
+// =============================================================
+//  DASHBOARD DA TURMA
+// =============================================================
+async function iniciarDashboardTurma() {
+  const loading = document.getElementById("dashboard-loading");
+  const conteudo = document.getElementById("dashboard-conteudo");
+  loading.style.display = "block";
+  loading.textContent = "Carregando...";
+  conteudo.style.display = "none";
+
+  try {
+    const r = await chamarBackend("buscar_dashboard_turma", { email: sessao.email, token_tutor: sessao.token });
+    if (!r.ok) { loading.textContent = r.erro || "Não foi possível carregar o dashboard."; return; }
+
+    document.getElementById("dash-total-alunos").textContent = r.total_alunos;
+    document.getElementById("dash-destaques").textContent = r.destaques_atuais;
+    document.getElementById("dash-sem-retorno").textContent = r.sem_retorno.length;
+    document.getElementById("dash-prestacoes-mes").textContent = r.prestacoes_enviadas_mes;
+
+    desenharGraficoHoras(r.grafico_horas);
+
+    const card = document.getElementById("dash-sem-retorno-card");
+    const lista = document.getElementById("dash-sem-retorno-lista");
+    if (r.sem_retorno.length > 0) {
+      card.style.display = "block";
+      lista.innerHTML = r.sem_retorno.map(a => `
+        <div class="aluno-item" style="cursor:default">
+          <div class="nome">${escapeHtml(a.nome)}</div>
+        </div>
+      `).join("");
+    } else {
+      card.style.display = "none";
+    }
+
+    loading.style.display = "none";
+    conteudo.style.display = "block";
+  } catch (e) {
+    loading.textContent = "Não foi possível conectar. Tente novamente.";
+  }
+}
+
+// Gráfico de barras simples, em SVG puro — sem biblioteca externa,
+// mesmo padrão do resto do Hub (HTML + CSS + JS puro).
+function desenharGraficoHoras(pontos) {
+  const svg = document.getElementById("dash-chart");
+  const largura = 640, altura = 220;
+  const margemBaixo = 34, margemTopo = 16, margemLado = 10;
+  svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
+  svg.innerHTML = "";
+
+  if (!pontos || pontos.length === 0) {
+    svg.innerHTML = `<text x="${largura/2}" y="${altura/2}" text-anchor="middle" class="chart-bar-label">Sem dados nas últimas semanas.</text>`;
+    return;
+  }
+
+  const horas = pontos.map(p => p.minutos / 60);
+  const maxHoras = Math.max(...horas, 1) * 1.2;
+  const areaAltura = altura - margemBaixo - margemTopo;
+  const areaLargura = largura - margemLado * 2;
+  const grupoLargura = areaLargura / pontos.length;
+  const barLargura = Math.min(60, grupoLargura * 0.5);
+
+  let svgHtml = "";
+  pontos.forEach((p, i) => {
+    const h = (p.minutos / 60 / maxHoras) * areaAltura;
+    const x = margemLado + i * grupoLargura + (grupoLargura - barLargura) / 2;
+    const y = margemTopo + areaAltura - h;
+    svgHtml += `<rect class="chart-bar" x="${x}" y="${y}" width="${barLargura}" height="${Math.max(h, 1)}" rx="4"></rect>`;
+    svgHtml += `<text class="chart-value-label" x="${x + barLargura / 2}" y="${y - 6}" text-anchor="middle">${formatarMinutos(p.minutos)}</text>`;
+    svgHtml += `<text class="chart-bar-label" x="${x + barLargura / 2}" y="${altura - margemBaixo + 16}" text-anchor="middle">${escapeHtml(p.semana)}</text>`;
+  });
+  svg.innerHTML = svgHtml;
 }
