@@ -98,7 +98,7 @@
       </div>
 
       <div class="nav-item active" data-page="alunos" onclick="irPara('alunos')">🧑‍🎓 Meus Alunos</div>
-      <div class="nav-item disabled" title="Ainda não disponível">📝 Prestação de contas <span class="em-breve">em breve</span></div>
+      <div class="nav-item" data-page="contas" onclick="irPara('contas')">📝 Prestação de contas</div>
       <div class="nav-item disabled" title="Ainda não disponível">📌 Foco da Semana <span class="em-breve">em breve</span></div>
       <div class="nav-item" data-page="prontuario" onclick="irPara('prontuario')">🗂️ Prontuário do aluno</div>
       <div class="nav-item disabled" title="Ainda não disponível">📊 Dashboard da turma <span class="em-breve">em breve</span></div>
@@ -118,6 +118,54 @@
           <thead><tr><th>RA</th><th>Nome</th><th>Série</th><th>Praça</th></tr></thead>
           <tbody id="alunos-tbody"></tbody>
         </table>
+      </div>
+
+      <!-- ===================== PRESTAÇÃO DE CONTAS ===================== -->
+      <div id="page-contas" class="page" style="display:none">
+        <div class="page-header">
+          <h2>Prestação de contas</h2>
+          <p>Lance as horas da semana por tipo de serviço prestado.</p>
+        </div>
+
+        <div class="card">
+          <h3>Semana de referência</h3>
+          <label for="contas-semana">Semana</label>
+          <select id="contas-semana" onchange="atualizarBoxNF()"></select>
+
+          <div style="margin-top:16px">
+            <label style="margin-top:0">Serviços prestados</label>
+            <div id="contas-linhas"></div>
+            <button class="btn ghost small" style="margin-top:6px" onclick="adicionarLinhaServico()">+ Adicionar tipo de serviço</button>
+          </div>
+
+          <label>Outro tipo de serviço (opcional)</label>
+          <textarea id="contas-outros" rows="2" placeholder="Descreva aqui se realizou algum serviço que não está nas opções acima"></textarea>
+
+          <div id="contas-nf-box" class="nf-box" style="display:none">
+            <h3>Nota Fiscal do período</h3>
+            <p class="hint" id="contas-nf-hint" style="margin:0 0 10px"></p>
+            <div id="contas-nf-inner"></div>
+          </div>
+
+          <div class="totals-bar">
+            <div class="tot"><div class="label">Soma das horas</div><div class="value" id="contas-tot-horas">0:00</div></div>
+            <div class="tot"><div class="label">Valor estimado</div><div class="value" id="contas-tot-valor">R$ 0,00</div></div>
+          </div>
+          <div id="contas-aviso-limite" class="erro" style="display:none">⚠️ Você ultrapassou o limite de 20:00 horas nessa semana. O excedente fica sujeito à aprovação.</div>
+          <p class="hint" id="contas-valor-hora-hint"></p>
+
+          <button class="btn full" style="margin-top:12px" onclick="enviarPrestacaoContasUI()">Enviar prestação de contas</button>
+        </div>
+
+        <div class="card">
+          <h3>Histórico</h3>
+          <p class="hint">Status da validação e valor estimado por semana enviada.</p>
+          <div id="contas-historico-loading" class="hint">Carregando...</div>
+          <table id="contas-historico-tabela" style="display:none">
+            <thead><tr><th>Semana</th><th>Enviada em</th><th class="num">Horas</th><th class="num">Valor</th><th>Status</th></tr></thead>
+            <tbody id="contas-historico-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ===================== PRONTUÁRIO DO ALUNO ===================== -->
