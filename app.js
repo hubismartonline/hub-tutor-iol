@@ -165,7 +165,19 @@ function entrarNoApp(email, dados) {
   document.getElementById("view-login").style.display = "none";
   document.getElementById("view-app").style.display = "block";
 
-  carregarMeusAlunos();
+  // Prestação de contas e Meus Alunos são só do tutor por enquanto —
+  // coordenação não tem alunos alocados nem envia horas. A aprovação
+  // da coordenação ainda vai entrar com o Painel de coordenação.
+  const navContas = document.querySelector('.nav-item[data-page="contas"]');
+  if (navContas) navContas.style.display = sessao.tipo === "tutor" ? "" : "none";
+  const navAlunos = document.querySelector('.nav-item[data-page="alunos"]');
+
+  if (sessao.tipo === "coordenacao") {
+    if (navAlunos) navAlunos.style.display = "none";
+    irPara("prontuario");
+  } else {
+    carregarMeusAlunos();
+  }
 }
 
 function sair() {
@@ -191,6 +203,17 @@ function sair() {
   document.getElementById("prontuario-detail").innerHTML = '<p class="hint">Selecione um aluno para ver o prontuário.</p>';
   document.getElementById("prontuario-lista-tutor").style.display = "none";
   document.getElementById("prontuario-busca-coordenacao").style.display = "none";
+
+  // Idem pra Prestação de Contas — linhas de serviço, totais e histórico
+  // do tutor anterior não podem persistir entre sessões diferentes.
+  contasCalendario = [];
+  contasValorHora = 0;
+  document.getElementById("contas-linhas").innerHTML = "";
+  document.getElementById("contas-semana").innerHTML = "";
+  document.getElementById("contas-outros").value = "";
+  document.getElementById("contas-nf-box").style.display = "none";
+  document.getElementById("contas-historico-tbody").innerHTML = "";
+  document.getElementById("contas-historico-tabela").style.display = "none";
 }
 
 // -------------------------------------------------------
@@ -205,6 +228,7 @@ function irPara(pagina) {
   if (pageEl) pageEl.style.display = "block";
 
   if (pagina === "prontuario") iniciarProntuario();
+  if (pagina === "contas") iniciarPrestacaoContas();
 }
 
 async function carregarMeusAlunos() {
@@ -583,4 +607,235 @@ function timelineHTML(registros) {
         <div class="timeline-texto">${escapeHtml(texto)}<br><span class="hint">— ${escapeHtml(reg.tutor_nome)}</span></div>
       </div>`;
   }).join("");
+}
+
+// =============================================================
+//  PRESTAÇÃO DE CONTAS / NF
+// =============================================================
+let contasCalendario = [];     // ciclos vindos de buscar_calendario_horas
+let contasValorHora = 0;
+let contasLinhaSeq = 0;
+let TIPOS_SERVICO_CONTAS = []; // vem do backend (mesma lista usada pra validar no envio)
+let mapaSemanaCiclo = {};       // semana -> { periodo_emissao, ultima }
+
+function formatarMinutos(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h + ":" + String(m).padStart(2, "0");
+}
+function formatarMoeda(v) {
+  return "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// -------------------------------------------------------
+//  Entrada na página
+// -------------------------------------------------------
+async function iniciarPrestacaoContas() {
+  document.getElementById("contas-linhas").innerHTML = "";
+  document.getElementById("contas-semana").innerHTML = "<option>Carregando...</option>";
+  try {
+    const r = await chamarBackend("buscar_calendario_horas", { email: sessao.email, token_tutor: sessao.token });
+    if (!r.ok) {
+      document.getElementById("contas-semana").innerHTML = `<option>${escapeHtml(r.erro || "Erro ao carregar")}</option>`;
+      return;
+    }
+    contasCalendario = r.ciclos || [];
+    contasValorHora = r.valor_hora || 0;
+    TIPOS_SERVICO_CONTAS = r.tipos_servico || [];
+
+    renderSemanaOptions();
+    document.getElementById("contas-valor-hora-hint").textContent = contasValorHora
+      ? `Valor calculado com base na remuneração cadastrada desta tutoria (R$ ${contasValorHora.toFixed(2).replace(".", ",")}/hora) — não é uma tarifa única da plataforma.`
+      : "Não encontramos sua remuneração cadastrada — fale com a coordenação.";
+
+    adicionarLinhaServico();
+    calcularTotaisContas();
+    atualizarBoxNF();
+    carregarHistoricoPrestacao();
+  } catch (e) {
+    document.getElementById("contas-semana").innerHTML = "<option>Não foi possível conectar.</option>";
+  }
+}
+
+// -------------------------------------------------------
+//  Dropdown de semanas — achata todos os ciclos do cronograma
+// -------------------------------------------------------
+function renderSemanaOptions() {
+  const sel = document.getElementById("contas-semana");
+  mapaSemanaCiclo = {};
+  const opts = [];
+  contasCalendario.forEach(ciclo => {
+    ciclo.semanas.forEach((sem, idx) => {
+      mapaSemanaCiclo[sem] = { periodo_emissao: ciclo.periodo_emissao, ultima: idx === ciclo.semanas.length - 1 };
+      opts.push(`<option value="${escapeHtml(sem)}">${escapeHtml(sem)}</option>`);
+    });
+  });
+  sel.innerHTML = opts.join("") || "<option>Nenhuma semana cadastrada</option>";
+}
+
+// -------------------------------------------------------
+//  Linhas de serviço (tipo + tempo + descrição)
+// -------------------------------------------------------
+function adicionarLinhaServico(tipoPreset, horasPreset, descPreset) {
+  contasLinhaSeq++;
+  const id = "contas-linha-" + contasLinhaSeq;
+  const wrap = document.createElement("div");
+  wrap.id = id;
+  wrap.innerHTML = `
+    <div class="service-row">
+      <select onchange="calcularTotaisContas()">
+        ${TIPOS_SERVICO_CONTAS.map(t => `<option ${t === tipoPreset ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}
+      </select>
+      <input type="text" placeholder="hh:mm" value="${escapeHtml(horasPreset || "")}" onchange="calcularTotaisContas()">
+      <button class="icon-btn" onclick="document.getElementById('${id}').remove(); calcularTotaisContas();">✕</button>
+    </div>
+    <input class="service-row-desc" type="text" placeholder="Descrição do que foi feito (opcional)" value="${escapeHtml(descPreset || "")}">
+  `;
+  document.getElementById("contas-linhas").appendChild(wrap);
+}
+
+function calcularTotaisContas() {
+  const inputs = document.querySelectorAll("#contas-linhas .service-row input[type='text']");
+  let totalMin = 0;
+  inputs.forEach(inp => {
+    const m = inp.value.match(/^(\d{1,2}):([0-5]\d)$/);
+    if (m) totalMin += parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  });
+  document.getElementById("contas-tot-horas").textContent = formatarMinutos(totalMin);
+  document.getElementById("contas-tot-valor").textContent = formatarMoeda((totalMin / 60) * contasValorHora);
+  document.getElementById("contas-aviso-limite").style.display = totalMin > 20 * 60 ? "block" : "none";
+}
+
+// -------------------------------------------------------
+//  NF — só aparece quando a semana selecionada é a última do ciclo
+// -------------------------------------------------------
+async function atualizarBoxNF() {
+  const semana = document.getElementById("contas-semana").value;
+  const info = mapaSemanaCiclo[semana];
+  const box = document.getElementById("contas-nf-box");
+  if (!info || !info.ultima || !info.periodo_emissao) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  document.getElementById("contas-nf-hint").textContent = `Referente ao período de emissão ${info.periodo_emissao}.`;
+  await renderNfBox(info.periodo_emissao);
+}
+
+async function renderNfBox(periodo) {
+  const inner = document.getElementById("contas-nf-inner");
+  inner.innerHTML = '<p class="hint">Carregando...</p>';
+  try {
+    const r = await chamarBackend("buscar_nf_status", { email: sessao.email, token_tutor: sessao.token, periodo_emissao: periodo });
+    if (!r.ok) { inner.innerHTML = `<p class="hint">${escapeHtml(r.erro || "Não foi possível carregar.")}</p>`; return; }
+    const nf = r.nf;
+    if (!nf.liberado) {
+      inner.innerHTML = `<div class="nf-status-msg aguardando">⏳ Aguardando aprovação da coordenação para liberar a emissão da NF deste período.</div>`;
+      return;
+    }
+    if (nf.situacao === "emitida") {
+      inner.innerHTML = `
+        <div class="nf-status-msg emitida">✓ NF emitida${nf.data_emissao ? " em " + formatarDataISO(nf.data_emissao) : ""}.
+        ${nf.arquivo_url ? ` <a href="${escapeHtml(nf.arquivo_url)}" target="_blank" rel="noopener">Ver arquivo anexado</a>` : ""}</div>`;
+      return;
+    }
+    inner.innerHTML = `
+      <div class="nf-status-msg liberado">✓ Liberado pela coordenação — você já pode emitir a NF deste período.</div>
+      <label style="margin-top:0">Anexar NF (opcional)</label>
+      <input type="file" id="contas-nf-arquivo" accept="application/pdf,image/*">
+      <button class="btn small" style="margin-top:10px" onclick="marcarNfEmitidaUI('${periodo}')">Marcar como emitida</button>
+    `;
+  } catch (e) {
+    inner.innerHTML = '<p class="hint">Não foi possível conectar. Tente novamente.</p>';
+  }
+}
+
+function lerArquivoComoBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function marcarNfEmitidaUI(periodo) {
+  const fileInput = document.getElementById("contas-nf-arquivo");
+  const file = fileInput && fileInput.files[0];
+  const dados = { email: sessao.email, token_tutor: sessao.token, periodo_emissao: periodo };
+  try {
+    if (file) {
+      dados.arquivo_base64 = await lerArquivoComoBase64(file);
+      dados.arquivo_nome = file.name;
+      dados.arquivo_tipo = file.type || "application/pdf";
+    }
+    const r = await chamarBackend("marcar_nf_emitida", dados);
+    if (!r.ok) { alert(r.erro || "Não foi possível marcar como emitida."); return; }
+    await renderNfBox(periodo);
+  } catch (e) {
+    alert("Não foi possível conectar. Tente novamente.");
+  }
+}
+
+// -------------------------------------------------------
+//  Enviar prestação de contas
+// -------------------------------------------------------
+async function enviarPrestacaoContasUI() {
+  const semana = document.getElementById("contas-semana").value;
+  const linhasEls = document.querySelectorAll("#contas-linhas > div");
+  const linhas = [];
+  linhasEls.forEach(div => {
+    const tipo = div.querySelector("select").value;
+    const horas = div.querySelector(".service-row input[type='text']").value.trim();
+    const descricao = div.querySelector(".service-row-desc").value.trim();
+    if (horas) linhas.push({ tipo, horas, descricao });
+  });
+  const outros = document.getElementById("contas-outros").value.trim();
+
+  if (linhas.length === 0 && !outros) { alert("Adicione ao menos um serviço prestado."); return; }
+
+  try {
+    const r = await chamarBackend("enviar_prestacao_contas", {
+      email: sessao.email, token_tutor: sessao.token, semana, linhas, outros
+    });
+    if (!r.ok) { alert(r.erro || "Não foi possível enviar."); return; }
+    alert("Prestação de contas enviada com sucesso!");
+    document.getElementById("contas-linhas").innerHTML = "";
+    adicionarLinhaServico();
+    document.getElementById("contas-outros").value = "";
+    calcularTotaisContas();
+    carregarHistoricoPrestacao();
+  } catch (e) {
+    alert("Não foi possível conectar. Tente novamente.");
+  }
+}
+
+// -------------------------------------------------------
+//  Histórico
+// -------------------------------------------------------
+async function carregarHistoricoPrestacao() {
+  const loading = document.getElementById("contas-historico-loading");
+  const tabela  = document.getElementById("contas-historico-tabela");
+  const tbody   = document.getElementById("contas-historico-tbody");
+  loading.style.display = "block";
+  loading.textContent = "Carregando...";
+  tabela.style.display = "none";
+  try {
+    const r = await chamarBackend("buscar_historico_prestacao", { email: sessao.email, token_tutor: sessao.token });
+    if (!r.ok || !r.historico || r.historico.length === 0) {
+      tbody.innerHTML = "";
+      loading.textContent = r.ok ? "Nenhuma prestação enviada ainda." : (r.erro || "Não foi possível carregar.");
+      return;
+    }
+    loading.style.display = "none";
+    const STATUS_LABEL = { validacao: "Em validação", aprovada: "Aprovada", correcao: "Correção necessária" };
+    tbody.innerHTML = r.historico.map(h => `
+      <tr>
+        <td>${escapeHtml(h.semana)}</td>
+        <td>${h.enviada_em ? formatarDataISO(h.enviada_em) : "—"}</td>
+        <td class="num">${formatarMinutos(h.minutos)}</td>
+        <td class="num">${formatarMoeda(h.valor)}</td>
+        <td>${escapeHtml(STATUS_LABEL[h.status] || h.status)}</td>
+      </tr>
+    `).join("");
+    tabela.style.display = "table";
+  } catch (e) {
+    loading.textContent = "Não foi possível conectar. Tente novamente.";
+  }
 }
