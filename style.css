@@ -192,6 +192,40 @@ select:focus { border-color: var(--blue); }
 .timeline-tag.destaque { background: #FFF6D9; color: #8a6d00; }
 .timeline-texto { font-size: 13.5px; color: var(--text); margin-top: 4px; white-space: pre-line; }
 
+/* ===================== PRESTAÇÃO DE CONTAS ===================== */
+.service-row {
+  display: grid; grid-template-columns: 1fr 110px 36px; gap: 8px; align-items: center;
+  margin-bottom: 8px;
+}
+.service-row-desc { margin-top: 4px; margin-bottom: 10px; }
+.icon-btn {
+  border: 1.5px solid var(--border); background: #fff; border-radius: 8px; cursor: pointer;
+  height: 38px; color: var(--text2); font-size: 14px;
+}
+.icon-btn:hover { background: #FDECEC; color: #C0392B; border-color: #F3C9C9; }
+
+.nf-box {
+  margin-top: 18px; padding: 16px; border-radius: 10px;
+  background: #F0F9FF; border: 1px dashed var(--blue);
+}
+.nf-box h3 { margin: 0 0 4px; font-size: 14px; color: var(--navy); }
+.nf-status-msg {
+  padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 10px;
+}
+.nf-status-msg.aguardando { background: #EEF4FC; color: #184F95; }
+.nf-status-msg.liberado { background: #E8F7EA; color: #006300; }
+.nf-status-msg.emitida { background: #E8F7EA; color: #006300; }
+
+.totals-bar { display: flex; gap: 24px; margin-top: 18px; flex-wrap: wrap; }
+.totals-bar .tot .label { font-size: 11.5px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.03em; }
+.totals-bar .tot .value { font-size: 20px; font-weight: 800; color: var(--navy); }
+
+td.num, th.num { text-align: right; }
+
+@media (max-width: 720px) {
+  .service-row { grid-template-columns: 1fr 90px 32px; }
+}
+
 @media (max-width: 720px) {
   .prontuario-layout { grid-template-columns: 1fr; }
 }
