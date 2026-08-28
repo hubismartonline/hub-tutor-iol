@@ -231,6 +231,7 @@ function sair() {
   document.getElementById("dash-vest-posicao").innerHTML = "";
   document.getElementById("dash-vest-chips-posicao").innerHTML = "";
   document.getElementById("dash-vest-quadrantes").innerHTML = "";
+  document.getElementById("dash-vest-tabela-resumo").innerHTML = "";
   document.getElementById("dash-vest-nota-total-hint").textContent = "";
   document.getElementById("dash-vest-tabela-tutores").innerHTML = "";
   document.getElementById("dash-vest-privadas").innerHTML = "";
@@ -1096,13 +1097,13 @@ function mostrarEscolhasPrivadas() {
 }
 
 const GRUPOS_VEST = [
-  { id: "com_nota_recomendada",     label: "Com nota e recomendada",     cor: "#00838F", bg: "#E3F6F8",
+  { id: "com_nota_recomendada",     codigo: "B2", label: "Com nota e recomendada",     cor: "#00838F", bg: "#E3F6F8",
     desc: "Nota suficiente para pelo menos uma escolha recomendada." },
-  { id: "recomendada_sem_nota",     label: "Recomendada, sem nota",      cor: "#A68A00", bg: "#FFF9E0",
+  { id: "recomendada_sem_nota",     codigo: "D4", label: "Recomendada, sem nota",      cor: "#A68A00", bg: "#FFF9E0",
     desc: "Tem escolha recomendada, mas a nota está abaixo do corte dela." },
-  { id: "com_nota_nao_recomendada", label: "Com nota, não recomendada",  cor: "#5C6B85", bg: "#F0F2F5",
+  { id: "com_nota_nao_recomendada", codigo: "A1", label: "Com nota, não recomendada",  cor: "#5C6B85", bg: "#F0F2F5",
     desc: "Nota competitiva, mas nenhuma escolha com nota é recomendada." },
-  { id: "sem_nota_sem_recomendada", label: "Sem nota e sem recomendada", cor: "#C41E4B", bg: "#FDECF2",
+  { id: "sem_nota_sem_recomendada", codigo: "C3", label: "Sem nota e sem recomendada", cor: "#C41E4B", bg: "#FDECF2",
     desc: "Nota e escolha recomendada, as duas, a desenvolver." },
 ];
 
@@ -1121,12 +1122,24 @@ function renderQuadrantesVestibular(r) {
     const pct = total > 0 ? ((n / total) * 100).toFixed(1).replace(".", ",") : "0,0";
     return `
       <div class="quad-box" style="background:${g.bg}; border-color:${g.cor}" onclick="mostrarAlunosGrupoVestibular('${g.id}')">
-        <div class="titulo">${escapeHtml(g.label)}</div>
+        <div class="titulo">${escapeHtml(g.codigo)} — ${escapeHtml(g.label)}</div>
         <div class="num" style="color:${g.cor}">${n}</div>
         <div class="pct" style="color:${g.cor}">${pct}%</div>
         <div class="desc">${escapeHtml(g.desc)}</div>
       </div>`;
   }).join("");
+
+  // Tabela-resumo no mesmo formato do cluster que a Fran já usa nos
+  // relatórios dela (cluster + contagem + total geral).
+  const tabelaResumo = document.getElementById("dash-vest-tabela-resumo");
+  tabelaResumo.innerHTML = `
+    <table style="margin-top:16px">
+      <thead><tr><th>Cluster</th><th class="num">Alunos</th></tr></thead>
+      <tbody>
+        ${GRUPOS_VEST.map(g => `<tr><td>${escapeHtml(g.codigo)} - ${escapeHtml(g.label)}</td><td class="num">${contagens[g.id]}</td></tr>`).join("")}
+        <tr><td><strong>Total geral</strong></td><td class="num"><strong>${total}</strong></td></tr>
+      </tbody>
+    </table>`;
 
   // Coordenação também vê a comparação por tutor, numa tabela (o quadrante
   // acima é sempre o agregado do filtro atual — praça ou geral).
@@ -1134,7 +1147,7 @@ function renderQuadrantesVestibular(r) {
   if (r.escopo === "coordenacao" && r.tutores.length > 0) {
     tabelaWrap.innerHTML = `
       <table>
-        <thead><tr><th>Tutor(a)</th>${GRUPOS_VEST.map(g => `<th class="num">${escapeHtml(g.label)}</th>`).join("")}</tr></thead>
+        <thead><tr><th>Tutor(a)</th>${GRUPOS_VEST.map(g => `<th class="num">${escapeHtml(g.codigo)}</th>`).join("")}</tr></thead>
         <tbody>
           ${r.tutores.map(t => `
             <tr>
