@@ -228,9 +228,12 @@ function sair() {
   // persistir no DOM entre sessões diferentes).
   dashVestData = null;
   document.getElementById("dash-vest-preenchimento").innerHTML = "";
+  document.getElementById("dash-vest-posicao").innerHTML = "";
+  document.getElementById("dash-vest-chips-posicao").innerHTML = "";
   document.getElementById("dash-vest-chart").innerHTML = "";
   document.getElementById("dash-vest-legenda").innerHTML = "";
   document.getElementById("dash-vest-chips").innerHTML = "";
+  document.getElementById("dash-vest-privadas").innerHTML = "";
   document.getElementById("dash-vest-drill").style.display = "none";
   document.getElementById("dash-vest-drill-lista").innerHTML = "";
   document.getElementById("dash-vest-praca").value = "";
@@ -931,8 +934,11 @@ async function carregarDashboardVestibular() {
     dashVestData = r;
 
     renderPreenchimentoVestibular(r);
+    renderPosicaoVestibular(r);
+    renderChipsPosicaoVestibular(r);
     desenharGraficoVestibular(r.tutores);
     renderChipsVestibular(r);
+    renderPrivadasVestibular(r);
 
     loading.style.display = "none";
     conteudo.style.display = "block";
@@ -970,6 +976,123 @@ function renderPreenchimentoVestibular(r) {
         </tbody>
       </table>`;
   }
+}
+
+// -------------------------------------------------------
+//  Posição das escolhas recomendadas (mutuamente exclusivo —
+//  sempre soma o total de alunos do escopo)
+// -------------------------------------------------------
+const POSICOES_VEST = [
+  { id: "top3",     label: "Recomendada nas 3 primeiras" },
+  { id: "restante", label: "Recomendada só nas 7 últimas" },
+  { id: "nenhuma",  label: "Sem nenhuma recomendada" },
+];
+
+function renderPosicaoVestibular(r) {
+  const wrap = document.getElementById("dash-vest-posicao");
+  if (r.escopo === "tutor") {
+    const t = r.tutores[0] || { posicao: { top3: 0, restante: 0, nenhuma: 0 } };
+    wrap.innerHTML = `
+      <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
+        <div class="stat-tile"><div class="label">3 primeiras escolhas</div><div class="value">${t.posicao.top3}</div></div>
+        <div class="stat-tile"><div class="label">Só nas 7 últimas</div><div class="value">${t.posicao.restante}</div></div>
+        <div class="stat-tile"><div class="label">Nenhuma recomendada</div><div class="value">${t.posicao.nenhuma}</div></div>
+      </div>`;
+  } else {
+    if (r.tutores.length === 0) { wrap.innerHTML = ""; return; }
+    wrap.innerHTML = `
+      <table>
+        <thead><tr><th>Tutor(a)</th><th class="num">3 primeiras</th><th class="num">Só 7 últimas</th><th class="num">Nenhuma</th></tr></thead>
+        <tbody>
+          ${r.tutores.map(t => `
+            <tr>
+              <td>${escapeHtml(t.tutor_nome)}</td>
+              <td class="num">${t.posicao.top3}</td>
+              <td class="num">${t.posicao.restante}</td>
+              <td class="num">${t.posicao.nenhuma}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }
+}
+
+function renderChipsPosicaoVestibular(r) {
+  const contagens = { top3: 0, restante: 0, nenhuma: 0 };
+  r.alunos.forEach(a => { contagens[a.posicao_recomendada]++; });
+  const wrap = document.getElementById("dash-vest-chips-posicao");
+  wrap.innerHTML = POSICOES_VEST.map(p => `
+    <button class="chip" onclick="mostrarAlunosPosicaoVestibular('${p.id}')">${escapeHtml(p.label)} — ${contagens[p.id]}</button>
+  `).join("");
+}
+
+function mostrarAlunosPosicaoVestibular(posicaoId) {
+  if (!dashVestData) return;
+  const posInfo = POSICOES_VEST.find(p => p.id === posicaoId);
+  const alunos = dashVestData.alunos.filter(a => a.posicao_recomendada === posicaoId);
+
+  const drill = document.getElementById("dash-vest-drill");
+  const titulo = document.getElementById("dash-vest-drill-titulo");
+  const lista = document.getElementById("dash-vest-drill-lista");
+
+  titulo.textContent = `${posInfo.label} (${alunos.length})`;
+  if (alunos.length === 0) {
+    lista.innerHTML = '<p class="hint">Nenhum aluno nesse grupo.</p>';
+  } else {
+    lista.innerHTML = alunos.map(a => {
+      const linhasEscolhas = a.escolhas.map(e => {
+        let linha = `${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
+        linha += e.recomendada ? " · recomendada" : " · não recomendada";
+        return `<div class="escolha-linha${e.recomendada ? " escolha-destaque" : ""}">${e.recomendada ? "★ " : ""}${linha}</div>`;
+      }).join("");
+      return `
+        <div class="aluno-item" style="cursor:default">
+          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}</div>
+          <div class="sub">${linhasEscolhas}</div>
+        </div>`;
+    }).join("");
+  }
+  drill.style.display = "block";
+}
+
+// -------------------------------------------------------
+//  Escolhas em universidades privadas (sem nota de corte na SISU —
+//  ajuda a distinguir "não tem nota porque é vestibular próprio" de
+//  "não tem nota porque não bateu o corte")
+// -------------------------------------------------------
+function renderPrivadasVestibular(r) {
+  const total = r.alunos.reduce((acc, a) => acc + a.escolhas.filter(e => e.provavel_privada).length, 0);
+  const el = document.getElementById("dash-vest-privadas");
+  el.innerHTML = `🏫 ${total} escolha(s) em universidades privadas/vestibular próprio (sem nota de corte na SISU) — clique para ver`;
+  el.onclick = mostrarEscolhasPrivadas;
+}
+
+function mostrarEscolhasPrivadas() {
+  if (!dashVestData) return;
+  const drill = document.getElementById("dash-vest-drill");
+  const titulo = document.getElementById("dash-vest-drill-titulo");
+  const lista = document.getElementById("dash-vest-drill-lista");
+
+  const porAluno = dashVestData.alunos
+    .map(a => ({ aluno: a, escolhas: a.escolhas.filter(e => e.provavel_privada) }))
+    .filter(x => x.escolhas.length > 0);
+
+  const totalEscolhas = porAluno.reduce((acc, x) => acc + x.escolhas.length, 0);
+  titulo.textContent = `Escolhas em universidades privadas (${totalEscolhas})`;
+  if (porAluno.length === 0) {
+    lista.innerHTML = '<p class="hint">Nenhuma escolha nessa condição.</p>';
+  } else {
+    lista.innerHTML = porAluno.map(x => {
+      const linhas = x.escolhas.map(e => `
+        <div class="escolha-linha escolha-destaque">★ ${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}${e.recomendada ? " · recomendada" : ""}</div>
+      `).join("");
+      return `
+        <div class="aluno-item" style="cursor:default">
+          <div class="nome">${escapeHtml(x.aluno.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(x.aluno.tutor) : ""}</div>
+          <div class="sub">${linhas}</div>
+        </div>`;
+    }).join("");
+  }
+  drill.style.display = "block";
 }
 
 const GRUPOS_VEST = [
@@ -1043,17 +1166,20 @@ function mostrarAlunosGrupoVestibular(grupoId) {
     lista.innerHTML = '<p class="hint">Nenhum aluno nesse grupo.</p>';
   } else {
     lista.innerHTML = alunos.map(a => {
-      const escolhasDoGrupo = a.escolhas.filter(e => e.grupo === grupoId);
-      const detalheEscolhas = escolhasDoGrupo.map(e => {
-        let extra = `${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
-        if (e.nota_corte !== null) extra += ` (corte ${e.nota_corte}${a.pu2 !== null ? ", PU2: " + a.pu2 : ""})`;
-        if (e.proximidade) extra += ` · ${e.proximidade === "perto" ? "perto da nota" : e.proximidade === "medio" ? "distância média" : "longe da nota"}`;
-        return extra;
-      }).join("<br>");
+      // Mostra TODAS as escolhas do aluno — a(s) que bateu(ram) com o
+      // grupo clicado fica(m) sinalizada(s) com ★, não escondemos o resto.
+      const linhasEscolhas = a.escolhas.map(e => {
+        const destaque = e.grupo === grupoId;
+        let linha = `${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
+        linha += e.recomendada ? " · recomendada" : " · não recomendada";
+        linha += e.nota_corte !== null ? ` · corte ${e.nota_corte}` : " · sem corte encontrado";
+        if (e.proximidade) linha += ` · ${e.proximidade === "perto" ? "perto da nota" : e.proximidade === "medio" ? "distância média" : "longe da nota"}`;
+        return `<div class="escolha-linha${destaque ? " escolha-destaque" : ""}">${destaque ? "★ " : ""}${linha}</div>`;
+      }).join("");
       return `
         <div class="aluno-item" style="cursor:default">
-          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}</div>
-          <div class="sub">${detalheEscolhas}</div>
+          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}${a.pu2 !== null ? " · PU2: " + a.pu2 : " · sem PU2"}</div>
+          <div class="sub">${linhasEscolhas}</div>
         </div>`;
     }).join("");
   }
