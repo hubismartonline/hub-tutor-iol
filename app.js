@@ -235,6 +235,7 @@ function sair() {
   document.getElementById("dash-vest-nota-total-hint").textContent = "";
   document.getElementById("dash-vest-tabela-tutores").innerHTML = "";
   document.getElementById("dash-vest-privadas").innerHTML = "";
+  document.getElementById("dash-vest-fragil").innerHTML = "";
   document.getElementById("dash-vest-drill").style.display = "none";
   document.getElementById("dash-vest-drill-tabela").innerHTML = "";
   document.getElementById("dash-vest-drill-lista").innerHTML = "";
@@ -940,6 +941,7 @@ async function carregarDashboardVestibular() {
     renderChipsPosicaoVestibular(r);
     renderQuadrantesVestibular(r);
     renderPrivadasVestibular(r);
+    renderRecomendacaoFragilVestibular(r);
 
     loading.style.display = "none";
     conteudo.style.display = "block";
@@ -1047,7 +1049,7 @@ function mostrarAlunosPosicaoVestibular(posicaoId) {
       }).join("");
       return `
         <div class="aluno-item" style="cursor:default">
-          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}</div>
+          <div class="nome">${a.recomendacao_fraca ? "⚠️ " : ""}${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}</div>
           <div class="sub">${linhasEscolhas}</div>
         </div>`;
     }).join("");
@@ -1090,6 +1092,47 @@ function mostrarEscolhasPrivadas() {
         <div class="aluno-item" style="cursor:default">
           <div class="nome">${escapeHtml(x.aluno.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(x.aluno.tutor) : ""}</div>
           <div class="sub">${linhas}</div>
+        </div>`;
+    }).join("");
+  }
+  drill.style.display = "block";
+}
+
+// -------------------------------------------------------
+//  Recomendação frágil: poucas escolhas recomendadas (≤3) e nenhuma
+//  delas entre as 3 primeiras — o aluno "tem" uma recomendada, mas ela
+//  é secundária pra ele. Sinal pensado pro acompanhamento do tutor.
+// -------------------------------------------------------
+function renderRecomendacaoFragilVestibular(r) {
+  const total = r.alunos.filter(a => a.recomendacao_fraca).length;
+  const el = document.getElementById("dash-vest-fragil");
+  el.innerHTML = `⚠️ ${total} aluno(s) com recomendação frágil (poucas escolhas recomendadas e nenhuma entre as 3 primeiras) — clique para ver`;
+  el.onclick = mostrarAlunosRecomendacaoFragil;
+}
+
+function mostrarAlunosRecomendacaoFragil() {
+  if (!dashVestData) return;
+  const alunos = dashVestData.alunos.filter(a => a.recomendacao_fraca);
+
+  const drill = document.getElementById("dash-vest-drill");
+  const titulo = document.getElementById("dash-vest-drill-titulo");
+  const lista = document.getElementById("dash-vest-drill-lista");
+  document.getElementById("dash-vest-drill-tabela").innerHTML = "";
+
+  titulo.textContent = `Recomendação frágil (${alunos.length})`;
+  if (alunos.length === 0) {
+    lista.innerHTML = '<p class="hint">Nenhum aluno nessa condição.</p>';
+  } else {
+    lista.innerHTML = alunos.map(a => {
+      const linhasEscolhas = a.escolhas.map(e => {
+        let linha = `${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
+        linha += e.recomendada ? " · recomendada" : " · não recomendada";
+        return `<div class="escolha-linha${e.recomendada ? " escolha-destaque" : ""}">${e.recomendada ? "★ " : ""}${linha}</div>`;
+      }).join("");
+      return `
+        <div class="aluno-item" style="cursor:default">
+          <div class="nome">⚠️ ${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""} · ${a.total_recomendadas} de ${a.total_escolhas} recomendada(s)</div>
+          <div class="sub">${linhasEscolhas}</div>
         </div>`;
     }).join("");
   }
@@ -1224,7 +1267,7 @@ function mostrarAlunosGrupoVestibular(grupoId) {
       }).join("");
       return `
         <div class="aluno-item" style="cursor:default">
-          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}${a.pu2 !== null ? " · PU2: " + a.pu2 : " · sem PU2"}</div>
+          <div class="nome">${a.recomendacao_fraca ? "⚠️ " : ""}${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}${a.pu2 !== null ? " · PU2: " + a.pu2 : " · sem PU2"}</div>
           <div class="sub">${linhasEscolhas}</div>
         </div>`;
     }).join("");
