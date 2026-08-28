@@ -230,11 +230,12 @@ function sair() {
   document.getElementById("dash-vest-preenchimento").innerHTML = "";
   document.getElementById("dash-vest-posicao").innerHTML = "";
   document.getElementById("dash-vest-chips-posicao").innerHTML = "";
-  document.getElementById("dash-vest-chart").innerHTML = "";
-  document.getElementById("dash-vest-legenda").innerHTML = "";
-  document.getElementById("dash-vest-chips").innerHTML = "";
+  document.getElementById("dash-vest-quadrantes").innerHTML = "";
+  document.getElementById("dash-vest-nota-total-hint").textContent = "";
+  document.getElementById("dash-vest-tabela-tutores").innerHTML = "";
   document.getElementById("dash-vest-privadas").innerHTML = "";
   document.getElementById("dash-vest-drill").style.display = "none";
+  document.getElementById("dash-vest-drill-tabela").innerHTML = "";
   document.getElementById("dash-vest-drill-lista").innerHTML = "";
   document.getElementById("dash-vest-praca").value = "";
 }
@@ -936,8 +937,7 @@ async function carregarDashboardVestibular() {
     renderPreenchimentoVestibular(r);
     renderPosicaoVestibular(r);
     renderChipsPosicaoVestibular(r);
-    desenharGraficoVestibular(r.tutores);
-    renderChipsVestibular(r);
+    renderQuadrantesVestibular(r);
     renderPrivadasVestibular(r);
 
     loading.style.display = "none";
@@ -1096,60 +1096,90 @@ function mostrarEscolhasPrivadas() {
 }
 
 const GRUPOS_VEST = [
-  { id: "com_nota_recomendada",       label: "Com nota e recomendada",        cor: "#00BDF2" },
-  { id: "recomendada_sem_nota",       label: "Recomendada, sem nota",         cor: "#EBEA70" },
-  { id: "com_nota_nao_recomendada",   label: "Com nota, não recomendada",     cor: "#8898aa" },
-  { id: "sem_nota_sem_recomendada",   label: "Sem nota e sem recomendada",    cor: "#EE2D67" },
+  { id: "com_nota_recomendada",     label: "Com nota e recomendada",     cor: "#00838F", bg: "#E3F6F8",
+    desc: "Nota suficiente para pelo menos uma escolha recomendada." },
+  { id: "recomendada_sem_nota",     label: "Recomendada, sem nota",      cor: "#A68A00", bg: "#FFF9E0",
+    desc: "Tem escolha recomendada, mas a nota está abaixo do corte dela." },
+  { id: "com_nota_nao_recomendada", label: "Com nota, não recomendada",  cor: "#5C6B85", bg: "#F0F2F5",
+    desc: "Nota competitiva, mas nenhuma escolha com nota é recomendada." },
+  { id: "sem_nota_sem_recomendada", label: "Sem nota e sem recomendada", cor: "#C41E4B", bg: "#FDECF2",
+    desc: "Nota e escolha recomendada, as duas, a desenvolver." },
 ];
 
-function desenharGraficoVestibular(tutores) {
-  const svg = document.getElementById("dash-vest-chart");
-  const largura = 900, altura = 260;
-  const margemBaixo = 50, margemTopo = 20, margemLado = 20;
-  svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
-  svg.innerHTML = "";
-
-  if (!tutores || tutores.length === 0) {
-    svg.innerHTML = `<text x="${largura/2}" y="${altura/2}" text-anchor="middle" class="chart-bar-label">Sem alunos de 3EM nesse filtro.</text>`;
-    document.getElementById("dash-vest-legenda").innerHTML = "";
-    return;
-  }
-
-  const areaAltura = altura - margemBaixo - margemTopo;
-  const areaLargura = largura - margemLado * 2;
-  const grupoLargura = areaLargura / tutores.length;
-  const barLargura = Math.min(18, (grupoLargura * 0.75) / GRUPOS_VEST.length);
-
-  let html = "";
-  tutores.forEach((t, ti) => {
-    const gx0 = margemLado + ti * grupoLargura + (grupoLargura - barLargura * GRUPOS_VEST.length) / 2;
-    GRUPOS_VEST.forEach((g, gi) => {
-      const pct = t.total_alunos_3em > 0 ? (t.grupos[g.id] / t.total_alunos_3em) * 100 : 0;
-      const h = (pct / 100) * areaAltura;
-      const x = gx0 + gi * barLargura;
-      const y = margemTopo + areaAltura - h;
-      html += `<rect x="${x}" y="${y}" width="${barLargura - 2}" height="${Math.max(h, 1)}" fill="${g.cor}" rx="2"></rect>`;
-    });
-    const primeiroNome = String(t.tutor_nome).split(" ")[0];
-    html += `<text x="${gx0 + (barLargura * GRUPOS_VEST.length) / 2}" y="${altura - margemBaixo + 16}" text-anchor="middle" class="chart-bar-label">${escapeHtml(primeiroNome)}</text>`;
-  });
-  svg.innerHTML = html;
-
-  document.getElementById("dash-vest-legenda").innerHTML = GRUPOS_VEST.map(g =>
-    `<div class="legend-item"><span class="legend-swatch" style="background:${g.cor}"></span>${escapeHtml(g.label)}</div>`
-  ).join("");
-}
-
-function renderChipsVestibular(r) {
+// ---- Quadrantes clicáveis (substituem o gráfico de barras) ----
+function renderQuadrantesVestibular(r) {
+  const total = r.alunos.length;
   const contagens = { com_nota_recomendada: 0, recomendada_sem_nota: 0, com_nota_nao_recomendada: 0, sem_nota_sem_recomendada: 0 };
   r.alunos.forEach(a => a.grupos.forEach(g => { if (g in contagens) contagens[g]++; }));
 
-  const wrap = document.getElementById("dash-vest-chips");
-  wrap.innerHTML = GRUPOS_VEST.map(g => `
-    <button class="chip" style="border-color:${g.cor}" onclick="mostrarAlunosGrupoVestibular('${g.id}')">
-      ${escapeHtml(g.label)} — ${contagens[g.id]}
-    </button>
-  `).join("");
+  document.getElementById("dash-vest-nota-total-hint").textContent =
+    total > 0 ? `${total} aluno(s) de 3EM no total (um aluno pode contar em mais de um quadrante, se tiver escolhas diferentes).` : "";
+
+  const wrap = document.getElementById("dash-vest-quadrantes");
+  wrap.innerHTML = GRUPOS_VEST.map(g => {
+    const n = contagens[g.id];
+    const pct = total > 0 ? ((n / total) * 100).toFixed(1).replace(".", ",") : "0,0";
+    return `
+      <div class="quad-box" style="background:${g.bg}; border-color:${g.cor}" onclick="mostrarAlunosGrupoVestibular('${g.id}')">
+        <div class="titulo">${escapeHtml(g.label)}</div>
+        <div class="num" style="color:${g.cor}">${n}</div>
+        <div class="pct" style="color:${g.cor}">${pct}%</div>
+        <div class="desc">${escapeHtml(g.desc)}</div>
+      </div>`;
+  }).join("");
+
+  // Coordenação também vê a comparação por tutor, numa tabela (o quadrante
+  // acima é sempre o agregado do filtro atual — praça ou geral).
+  const tabelaWrap = document.getElementById("dash-vest-tabela-tutores");
+  if (r.escopo === "coordenacao" && r.tutores.length > 0) {
+    tabelaWrap.innerHTML = `
+      <table>
+        <thead><tr><th>Tutor(a)</th>${GRUPOS_VEST.map(g => `<th class="num">${escapeHtml(g.label)}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${r.tutores.map(t => `
+            <tr>
+              <td>${escapeHtml(t.tutor_nome)}</td>
+              ${GRUPOS_VEST.map(g => `<td class="num">${t.grupos[g.id]}</td>`).join("")}
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+  } else {
+    tabelaWrap.innerHTML = "";
+  }
+}
+
+// ---- Tabela de distância até o corte (só pro quadrante "recomendada, sem nota") ----
+function montarTabelaDistancia(alunos, grupoId) {
+  const faixas = [
+    { id: "perto",  label: "Até 10 pts abaixo do corte" },
+    { id: "medio",  label: "11–50 pts abaixo do corte" },
+    { id: "longe",  label: "Mais de 50 pts abaixo do corte" },
+  ];
+  const porFaixa = { perto: [], medio: [], longe: [] };
+
+  alunos.forEach(a => {
+    const candidatas = a.escolhas.filter(e => e.grupo === grupoId && e.proximidade && a.pu2 !== null && e.nota_corte !== null);
+    if (candidatas.length === 0) return;
+    const ordem = { perto: 0, medio: 1, longe: 2 };
+    candidatas.sort((x, y) => ordem[x.proximidade] - ordem[y.proximidade]);
+    const rep = candidatas[0]; // a escolha mais próxima do corte representa o aluno
+    porFaixa[rep.proximidade].push(rep.nota_corte - a.pu2);
+  });
+
+  const linhas = faixas.map(f => {
+    const dist = porFaixa[f.id];
+    if (dist.length === 0) return `<tr><td>${f.label}</td><td class="num">0</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>`;
+    const media = (dist.reduce((a, b) => a + b, 0) / dist.length).toFixed(1);
+    const min = Math.min(...dist).toFixed(1);
+    const max = Math.max(...dist).toFixed(1);
+    return `<tr><td>${f.label}</td><td class="num">${dist.length}</td><td class="num">${media} pts</td><td class="num">${min} pts</td><td class="num">${max} pts</td></tr>`;
+  }).join("");
+
+  return `
+    <table style="margin-bottom:18px">
+      <thead><tr><th>Faixa de distância</th><th class="num">Alunos</th><th class="num">Média</th><th class="num">Mín.</th><th class="num">Máx.</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>`;
 }
 
 function mostrarAlunosGrupoVestibular(grupoId) {
@@ -1160,6 +1190,9 @@ function mostrarAlunosGrupoVestibular(grupoId) {
   const drill = document.getElementById("dash-vest-drill");
   const titulo = document.getElementById("dash-vest-drill-titulo");
   const lista = document.getElementById("dash-vest-drill-lista");
+  const tabelaWrap = document.getElementById("dash-vest-drill-tabela");
+
+  tabelaWrap.innerHTML = grupoId === "recomendada_sem_nota" ? montarTabelaDistancia(alunos, grupoId) : "";
 
   titulo.textContent = `${grupoInfo.label} (${alunos.length})`;
   if (alunos.length === 0) {
