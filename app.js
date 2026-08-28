@@ -1110,7 +1110,7 @@ const GRUPOS_VEST = [
 function renderQuadrantesVestibular(r) {
   const total = r.alunos.length;
   const contagens = { com_nota_recomendada: 0, recomendada_sem_nota: 0, com_nota_nao_recomendada: 0, sem_nota_sem_recomendada: 0 };
-  r.alunos.forEach(a => a.grupos.forEach(g => { if (g in contagens) contagens[g]++; }));
+  r.alunos.forEach(a => { if (a.grupo_principal in contagens) contagens[a.grupo_principal]++; });
 
   document.getElementById("dash-vest-nota-total-hint").textContent =
     total > 0 ? `${total} aluno(s) de 3EM no total (um aluno pode contar em mais de um quadrante, se tiver escolhas diferentes).` : "";
@@ -1185,7 +1185,7 @@ function montarTabelaDistancia(alunos, grupoId) {
 function mostrarAlunosGrupoVestibular(grupoId) {
   if (!dashVestData) return;
   const grupoInfo = GRUPOS_VEST.find(g => g.id === grupoId);
-  const alunos = dashVestData.alunos.filter(a => a.grupos.includes(grupoId));
+  const alunos = dashVestData.alunos.filter(a => a.grupo_principal === grupoId);
 
   const drill = document.getElementById("dash-vest-drill");
   const titulo = document.getElementById("dash-vest-drill-titulo");
