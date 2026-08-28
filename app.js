@@ -171,7 +171,7 @@ function entrarNoApp(email, dados) {
   const navContas = document.querySelector('.nav-item[data-page="contas"]');
   if (navContas) navContas.style.display = sessao.tipo === "tutor" ? "" : "none";
   const navDashboard = document.querySelector('.nav-item[data-page="dashboard"]');
-  if (navDashboard) navDashboard.style.display = sessao.tipo === "tutor" ? "" : "none";
+  if (navDashboard) navDashboard.style.display = "";
   const navAlunos = document.querySelector('.nav-item[data-page="alunos"]');
 
   if (sessao.tipo === "coordenacao") {
@@ -221,9 +221,19 @@ function sair() {
   document.getElementById("dashboard-conteudo").style.display = "none";
   document.getElementById("dashboard-loading").style.display = "block";
   document.getElementById("dashboard-loading").textContent = "Carregando...";
-  document.getElementById("dash-chart").innerHTML = "";
   document.getElementById("dash-sem-retorno-lista").innerHTML = "";
   document.getElementById("dash-sem-retorno-card").style.display = "none";
+
+  // Idem pra Estratégias de Vestibular (dado de outra pessoa não pode
+  // persistir no DOM entre sessões diferentes).
+  dashVestData = null;
+  document.getElementById("dash-vest-preenchimento").innerHTML = "";
+  document.getElementById("dash-vest-chart").innerHTML = "";
+  document.getElementById("dash-vest-legenda").innerHTML = "";
+  document.getElementById("dash-vest-chips").innerHTML = "";
+  document.getElementById("dash-vest-drill").style.display = "none";
+  document.getElementById("dash-vest-drill-lista").innerHTML = "";
+  document.getElementById("dash-vest-praca").value = "";
 }
 
 // -------------------------------------------------------
@@ -854,36 +864,75 @@ async function carregarHistoricoPrestacao() {
 // =============================================================
 //  DASHBOARD DA TURMA
 // =============================================================
+let dashVestData = null; // guarda a última resposta pra filtrar localmente no clique dos chips
+
 async function iniciarDashboardTurma() {
   const loading = document.getElementById("dashboard-loading");
   const conteudo = document.getElementById("dashboard-conteudo");
+  const secaoTutor = document.getElementById("dash-secao-tutor");
+  const filtroPraca = document.getElementById("dash-vest-filtro-praca");
   loading.style.display = "block";
   loading.textContent = "Carregando...";
   conteudo.style.display = "none";
 
+  if (sessao.tipo === "tutor") {
+    secaoTutor.style.display = "block";
+    filtroPraca.style.display = "none";
+    try {
+      const r = await chamarBackend("buscar_dashboard_turma", { email: sessao.email, token_tutor: sessao.token });
+      if (r.ok) {
+        document.getElementById("dash-total-alunos").textContent = r.total_alunos;
+        document.getElementById("dash-destaques").textContent = r.destaques_atuais;
+        document.getElementById("dash-sem-retorno").textContent = r.sem_retorno.length;
+        const card = document.getElementById("dash-sem-retorno-card");
+        const lista = document.getElementById("dash-sem-retorno-lista");
+        if (r.sem_retorno.length > 0) {
+          card.style.display = "block";
+          lista.innerHTML = r.sem_retorno.map(a => `
+            <div class="aluno-item" style="cursor:default"><div class="nome">${escapeHtml(a.nome)}</div></div>
+          `).join("");
+        } else {
+          card.style.display = "none";
+        }
+      }
+    } catch (e) { /* a seção de vestibular ainda carrega mesmo se essa parte falhar */ }
+  } else {
+    secaoTutor.style.display = "none";
+    filtroPraca.style.display = "block";
+  }
+
+  loading.style.display = "none";
+  conteudo.style.display = "block";
+
+  carregarDashboardVestibular();
+}
+
+// -------------------------------------------------------
+//  Estratégias de Vestibular (3EM) — tutor vê a própria turma,
+//  coordenação vê todos os tutores comparados (com filtro de praça).
+// -------------------------------------------------------
+async function carregarDashboardVestibular() {
+  const loading = document.getElementById("dash-vest-loading");
+  const conteudo = document.getElementById("dash-vest-conteudo");
+  loading.style.display = "block";
+  loading.textContent = "Carregando...";
+  conteudo.style.display = "none";
+  document.getElementById("dash-vest-drill").style.display = "none";
+
+  const dados = { email: sessao.email, token_tutor: sessao.token };
+  if (sessao.tipo === "coordenacao") {
+    const praca = document.getElementById("dash-vest-praca").value;
+    if (praca) dados.praca = praca;
+  }
+
   try {
-    const r = await chamarBackend("buscar_dashboard_turma", { email: sessao.email, token_tutor: sessao.token });
-    if (!r.ok) { loading.textContent = r.erro || "Não foi possível carregar o dashboard."; return; }
+    const r = await chamarBackend("buscar_dashboard_vestibular", dados);
+    if (!r.ok) { loading.textContent = r.erro || "Não foi possível carregar."; return; }
+    dashVestData = r;
 
-    document.getElementById("dash-total-alunos").textContent = r.total_alunos;
-    document.getElementById("dash-destaques").textContent = r.destaques_atuais;
-    document.getElementById("dash-sem-retorno").textContent = r.sem_retorno.length;
-    document.getElementById("dash-prestacoes-mes").textContent = r.prestacoes_enviadas_mes;
-
-    desenharGraficoHoras(r.grafico_horas);
-
-    const card = document.getElementById("dash-sem-retorno-card");
-    const lista = document.getElementById("dash-sem-retorno-lista");
-    if (r.sem_retorno.length > 0) {
-      card.style.display = "block";
-      lista.innerHTML = r.sem_retorno.map(a => `
-        <div class="aluno-item" style="cursor:default">
-          <div class="nome">${escapeHtml(a.nome)}</div>
-        </div>
-      `).join("");
-    } else {
-      card.style.display = "none";
-    }
+    renderPreenchimentoVestibular(r);
+    desenharGraficoVestibular(r.tutores);
+    renderChipsVestibular(r);
 
     loading.style.display = "none";
     conteudo.style.display = "block";
@@ -892,35 +941,121 @@ async function iniciarDashboardTurma() {
   }
 }
 
-// Gráfico de barras simples, em SVG puro — sem biblioteca externa,
-// mesmo padrão do resto do Hub (HTML + CSS + JS puro).
-function desenharGraficoHoras(pontos) {
-  const svg = document.getElementById("dash-chart");
-  const largura = 640, altura = 220;
-  const margemBaixo = 34, margemTopo = 16, margemLado = 10;
+function renderPreenchimentoVestibular(r) {
+  const wrap = document.getElementById("dash-vest-preenchimento");
+  if (r.escopo === "tutor") {
+    const t = r.tutores[0] || { total_alunos_3em: 0, acessou_hub: 0, preencheu_10: 0, preencheu_parcial: 0, nao_preencheu: 0 };
+    wrap.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="label">Alunos 3EM</div><div class="value">${t.total_alunos_3em}</div></div>
+        <div class="stat-tile"><div class="label">Já acessaram o Hub</div><div class="value">${t.acessou_hub}</div></div>
+        <div class="stat-tile"><div class="label">Preencheram as 10</div><div class="value">${t.preencheu_10}</div></div>
+        <div class="stat-tile"><div class="label">Parcial / Nenhuma</div><div class="value">${t.preencheu_parcial} / ${t.nao_preencheu}</div></div>
+      </div>`;
+  } else {
+    if (r.tutores.length === 0) { wrap.innerHTML = '<p class="hint">Nenhum aluno de 3EM encontrado nesse filtro.</p>'; return; }
+    wrap.innerHTML = `
+      <table>
+        <thead><tr><th>Tutor(a)</th><th class="num">Alunos 3EM</th><th class="num">Acessaram o Hub</th><th class="num">Preencheram as 10</th><th class="num">Parcial</th><th class="num">Nenhuma</th></tr></thead>
+        <tbody>
+          ${r.tutores.map(t => `
+            <tr>
+              <td>${escapeHtml(t.tutor_nome)}</td>
+              <td class="num">${t.total_alunos_3em}</td>
+              <td class="num">${t.acessou_hub}</td>
+              <td class="num">${t.preencheu_10}</td>
+              <td class="num">${t.preencheu_parcial}</td>
+              <td class="num">${t.nao_preencheu}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }
+}
+
+const GRUPOS_VEST = [
+  { id: "com_nota_recomendada",       label: "Com nota e recomendada",        cor: "#00BDF2" },
+  { id: "recomendada_sem_nota",       label: "Recomendada, sem nota",         cor: "#EBEA70" },
+  { id: "com_nota_nao_recomendada",   label: "Com nota, não recomendada",     cor: "#8898aa" },
+  { id: "sem_nota_sem_recomendada",   label: "Sem nota e sem recomendada",    cor: "#EE2D67" },
+];
+
+function desenharGraficoVestibular(tutores) {
+  const svg = document.getElementById("dash-vest-chart");
+  const largura = 900, altura = 260;
+  const margemBaixo = 50, margemTopo = 20, margemLado = 20;
   svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
   svg.innerHTML = "";
 
-  if (!pontos || pontos.length === 0) {
-    svg.innerHTML = `<text x="${largura/2}" y="${altura/2}" text-anchor="middle" class="chart-bar-label">Sem dados nas últimas semanas.</text>`;
+  if (!tutores || tutores.length === 0) {
+    svg.innerHTML = `<text x="${largura/2}" y="${altura/2}" text-anchor="middle" class="chart-bar-label">Sem alunos de 3EM nesse filtro.</text>`;
+    document.getElementById("dash-vest-legenda").innerHTML = "";
     return;
   }
 
-  const horas = pontos.map(p => p.minutos / 60);
-  const maxHoras = Math.max(...horas, 1) * 1.2;
   const areaAltura = altura - margemBaixo - margemTopo;
   const areaLargura = largura - margemLado * 2;
-  const grupoLargura = areaLargura / pontos.length;
-  const barLargura = Math.min(60, grupoLargura * 0.5);
+  const grupoLargura = areaLargura / tutores.length;
+  const barLargura = Math.min(18, (grupoLargura * 0.75) / GRUPOS_VEST.length);
 
-  let svgHtml = "";
-  pontos.forEach((p, i) => {
-    const h = (p.minutos / 60 / maxHoras) * areaAltura;
-    const x = margemLado + i * grupoLargura + (grupoLargura - barLargura) / 2;
-    const y = margemTopo + areaAltura - h;
-    svgHtml += `<rect class="chart-bar" x="${x}" y="${y}" width="${barLargura}" height="${Math.max(h, 1)}" rx="4"></rect>`;
-    svgHtml += `<text class="chart-value-label" x="${x + barLargura / 2}" y="${y - 6}" text-anchor="middle">${formatarMinutos(p.minutos)}</text>`;
-    svgHtml += `<text class="chart-bar-label" x="${x + barLargura / 2}" y="${altura - margemBaixo + 16}" text-anchor="middle">${escapeHtml(p.semana)}</text>`;
+  let html = "";
+  tutores.forEach((t, ti) => {
+    const gx0 = margemLado + ti * grupoLargura + (grupoLargura - barLargura * GRUPOS_VEST.length) / 2;
+    GRUPOS_VEST.forEach((g, gi) => {
+      const pct = t.total_alunos_3em > 0 ? (t.grupos[g.id] / t.total_alunos_3em) * 100 : 0;
+      const h = (pct / 100) * areaAltura;
+      const x = gx0 + gi * barLargura;
+      const y = margemTopo + areaAltura - h;
+      html += `<rect x="${x}" y="${y}" width="${barLargura - 2}" height="${Math.max(h, 1)}" fill="${g.cor}" rx="2"></rect>`;
+    });
+    const primeiroNome = String(t.tutor_nome).split(" ")[0];
+    html += `<text x="${gx0 + (barLargura * GRUPOS_VEST.length) / 2}" y="${altura - margemBaixo + 16}" text-anchor="middle" class="chart-bar-label">${escapeHtml(primeiroNome)}</text>`;
   });
-  svg.innerHTML = svgHtml;
+  svg.innerHTML = html;
+
+  document.getElementById("dash-vest-legenda").innerHTML = GRUPOS_VEST.map(g =>
+    `<div class="legend-item"><span class="legend-swatch" style="background:${g.cor}"></span>${escapeHtml(g.label)}</div>`
+  ).join("");
+}
+
+function renderChipsVestibular(r) {
+  const contagens = { com_nota_recomendada: 0, recomendada_sem_nota: 0, com_nota_nao_recomendada: 0, sem_nota_sem_recomendada: 0 };
+  r.alunos.forEach(a => a.grupos.forEach(g => { if (g in contagens) contagens[g]++; }));
+
+  const wrap = document.getElementById("dash-vest-chips");
+  wrap.innerHTML = GRUPOS_VEST.map(g => `
+    <button class="chip" style="border-color:${g.cor}" onclick="mostrarAlunosGrupoVestibular('${g.id}')">
+      ${escapeHtml(g.label)} — ${contagens[g.id]}
+    </button>
+  `).join("");
+}
+
+function mostrarAlunosGrupoVestibular(grupoId) {
+  if (!dashVestData) return;
+  const grupoInfo = GRUPOS_VEST.find(g => g.id === grupoId);
+  const alunos = dashVestData.alunos.filter(a => a.grupos.includes(grupoId));
+
+  const drill = document.getElementById("dash-vest-drill");
+  const titulo = document.getElementById("dash-vest-drill-titulo");
+  const lista = document.getElementById("dash-vest-drill-lista");
+
+  titulo.textContent = `${grupoInfo.label} (${alunos.length})`;
+  if (alunos.length === 0) {
+    lista.innerHTML = '<p class="hint">Nenhum aluno nesse grupo.</p>';
+  } else {
+    lista.innerHTML = alunos.map(a => {
+      const escolhasDoGrupo = a.escolhas.filter(e => e.grupo === grupoId);
+      const detalheEscolhas = escolhasDoGrupo.map(e => {
+        let extra = `${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
+        if (e.nota_corte !== null) extra += ` (corte ${e.nota_corte}${a.pu2 !== null ? ", PU2: " + a.pu2 : ""})`;
+        if (e.proximidade) extra += ` · ${e.proximidade === "perto" ? "perto da nota" : e.proximidade === "medio" ? "distância média" : "longe da nota"}`;
+        return extra;
+      }).join("<br>");
+      return `
+        <div class="aluno-item" style="cursor:default">
+          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}</div>
+          <div class="sub">${detalheEscolhas}</div>
+        </div>`;
+    }).join("");
+  }
+  drill.style.display = "block";
 }
