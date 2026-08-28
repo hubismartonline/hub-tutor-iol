@@ -214,20 +214,6 @@
         <div id="dashboard-loading" class="hint">Carregando...</div>
 
         <div id="dashboard-conteudo" style="display:none">
-          <div id="dash-secao-tutor">
-            <div class="stat-grid">
-              <div class="stat-tile"><div class="label">Alunos na turma</div><div class="value" id="dash-total-alunos">—</div></div>
-              <div class="stat-tile"><div class="label">Destaques atuais</div><div class="value" id="dash-destaques">—</div></div>
-              <div class="stat-tile"><div class="label">Sem retorno &gt; 7 dias</div><div class="value" id="dash-sem-retorno">—</div></div>
-            </div>
-
-            <div class="card" id="dash-sem-retorno-card" style="display:none">
-              <h3>Quem precisa de atenção</h3>
-              <p class="hint">Alunos sem nenhum registro no prontuário há mais de 7 dias.</p>
-              <div id="dash-sem-retorno-lista" class="aluno-list"></div>
-            </div>
-          </div>
-
           <!-- ===== Estratégias de Vestibular (3EM) — tutor e coordenação ===== -->
           <div class="card">
             <h3>Estratégias de Vestibular (3º EM)</h3>
@@ -249,16 +235,37 @@
             <div id="dash-vest-conteudo" style="display:none">
               <div id="dash-vest-preenchimento"></div>
 
-              <h3 style="margin-top:22px">Nota e carreira recomendada</h3>
+              <h3 style="margin-top:22px">Posição das escolhas recomendadas</h3>
+              <p class="hint">Onde, entre as 10 escolhas, aparece a(s) carreira(s) recomendada(s).</p>
+              <div id="dash-vest-posicao"></div>
+              <div class="chips-row" id="dash-vest-chips-posicao"></div>
+
+              <h3 style="margin-top:26px">Nota e carreira recomendada</h3>
               <svg id="dash-vest-chart" width="100%" height="260" viewBox="0 0 900 260" preserveAspectRatio="xMinYMin meet"></svg>
               <div class="chart-legend" id="dash-vest-legenda"></div>
 
               <div class="chips-row" id="dash-vest-chips"></div>
+              <div id="dash-vest-privadas" class="hint" style="margin-top:10px; cursor:pointer"></div>
 
               <div id="dash-vest-drill" style="display:none; margin-top:16px">
                 <h3 id="dash-vest-drill-titulo"></h3>
                 <div id="dash-vest-drill-lista" class="aluno-list"></div>
               </div>
+            </div>
+          </div>
+
+          <div id="dash-secao-tutor">
+            <div class="stat-grid">
+              <div class="stat-tile"><div class="label">Alunos na turma</div><div class="value" id="dash-total-alunos">—</div></div>
+              <div class="stat-tile"><div class="label">Destaques atuais</div><div class="value" id="dash-destaques">—</div></div>
+              <div class="stat-tile"><div class="label">Sem retorno &gt; 7 dias</div><div class="value" id="dash-sem-retorno">—</div></div>
+            </div>
+
+            <!-- Pontos de atenção ficam por último, não no topo -->
+            <div class="card" id="dash-sem-retorno-card" style="display:none">
+              <h3>Quem precisa de atenção</h3>
+              <p class="hint">Alunos sem nenhum registro no prontuário há mais de 7 dias.</p>
+              <div id="dash-sem-retorno-lista" class="aluno-list"></div>
             </div>
           </div>
         </div>
