@@ -237,13 +237,22 @@ td.num, th.num { text-align: right; }
 .stat-tile .label { font-size: 11.5px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
 .stat-tile .value { font-size: 26px; font-weight: 800; color: var(--navy); }
 
-.chart-bar { fill: var(--blue); }
-.chart-bar-label { font-size: 11px; fill: var(--text2); font-family: 'Lato', sans-serif; }
-.chart-value-label { font-size: 11px; fill: var(--navy); font-weight: 700; font-family: 'Lato', sans-serif; }
-
 @media (max-width: 900px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.chart-bar-label { font-size: 11px; fill: var(--text2); font-family: 'Lato', sans-serif; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text2); }
+.legend-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+.chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chip {
+  border: 1.5px solid var(--border); background: #fff; border-radius: 20px;
+  padding: 7px 14px; font-size: 12.5px; font-weight: 600; color: var(--text);
+  cursor: pointer; font-family: 'Lato', sans-serif; transition: background .15s;
+}
+.chip:hover { background: #F0F4FA; }
 
 @media (max-width: 720px) {
   .prontuario-layout { grid-template-columns: 1fr; }
