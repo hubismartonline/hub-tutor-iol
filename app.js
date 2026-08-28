@@ -881,31 +881,11 @@ async function iniciarDashboardTurma() {
   loading.textContent = "Carregando...";
   conteudo.style.display = "none";
 
-  if (sessao.tipo === "tutor") {
-    secaoTutor.style.display = "block";
-    filtroPraca.style.display = "none";
-    try {
-      const r = await chamarBackend("buscar_dashboard_turma", { email: sessao.email, token_tutor: sessao.token });
-      if (r.ok) {
-        document.getElementById("dash-total-alunos").textContent = r.total_alunos;
-        document.getElementById("dash-destaques").textContent = r.destaques_atuais;
-        document.getElementById("dash-sem-retorno").textContent = r.sem_retorno.length;
-        const card = document.getElementById("dash-sem-retorno-card");
-        const lista = document.getElementById("dash-sem-retorno-lista");
-        if (r.sem_retorno.length > 0) {
-          card.style.display = "block";
-          lista.innerHTML = r.sem_retorno.map(a => `
-            <div class="aluno-item" style="cursor:default"><div class="nome">${escapeHtml(a.nome)}</div></div>
-          `).join("");
-        } else {
-          card.style.display = "none";
-        }
-      }
-    } catch (e) { /* a seção de vestibular ainda carrega mesmo se essa parte falhar */ }
-  } else {
-    secaoTutor.style.display = "none";
-    filtroPraca.style.display = "block";
-  }
+  // === Alunos na turma / Destaques / Sem retorno — desativado por
+  // enquanto, a pedido da Fran. O código fica aqui pronto pra reativar,
+  // é só voltar a chamar buscar_dashboard_turma e mostrar a seção.
+  secaoTutor.style.display = "none";
+  filtroPraca.style.display = sessao.tipo === "coordenacao" ? "block" : "none";
 
   loading.style.display = "none";
   conteudo.style.display = "block";
