@@ -408,10 +408,13 @@ async function selecionarAlunoProntuario(ra) {
   });
 
   try {
-    const r = await chamarBackend("buscar_prontuario", { email: sessao.email, token_tutor: sessao.token, aluno_ra: ra });
+    const [r, rEstrategia] = await Promise.all([
+      chamarBackend("buscar_prontuario", { email: sessao.email, token_tutor: sessao.token, aluno_ra: ra }),
+      chamarBackend("buscar_estrategia_vestibular_aluno", { email: sessao.email, token_tutor: sessao.token, aluno_ra: ra }),
+    ]);
     if (!r.ok) { det.innerHTML = `<p class="hint">${escapeHtml(r.erro || "Não foi possível carregar o prontuário.")}</p>`; return; }
     prontuarioAlunoAtualNome = r.aluno.nome;
-    renderProntuarioDetail(r);
+    renderProntuarioDetail(r, rEstrategia && rEstrategia.ok ? rEstrategia.estrategia : null);
   } catch (e) {
     det.innerHTML = '<p class="hint">Não foi possível conectar. Tente novamente.</p>';
   }
@@ -421,7 +424,64 @@ async function selecionarAlunoProntuario(ra) {
 //  Monta o painel de detalhe: dados do aluno, destaque, formulário
 //  de novo contato (só tutor), ressalva (só tutor) e timeline.
 // -------------------------------------------------------
-function renderProntuarioDetail(data) {
+// -------------------------------------------------------
+//  Estratégia de Vestibular dentro do Prontuário — mostra tudo que
+//  está na "Base de alunos " da coordenação pra esse RA. Se o aluno
+//  não estiver nessa base (ex: fora do 3EM), não mostra nada.
+// -------------------------------------------------------
+function renderEstrategiaVestibularHTML(estrategia) {
+  if (!estrategia) return "";
+
+  const linha = (label, valor) => (valor === null || valor === undefined || valor === "")
+    ? ""
+    : `<div class="kv-row"><span class="kv-label">${escapeHtml(label)}</span><span class="kv-value">${escapeHtml(String(valor))}</span></div>`;
+
+  const aprovacaoOk = t => !!t && !t.toLowerCase().startsWith("não aprovado");
+  const { cor } = typeof corDoCluster === "function" ? corDoCluster(estrategia.cluster || "") : { cor: "#5C6B85" };
+
+  return `
+    <div class="card" style="margin-top:4px; margin-bottom:16px">
+      <h3>Estratégia de Vestibular</h3>
+      ${estrategia.cluster ? `<span class="badge" style="background:${cor}; color:#fff">${escapeHtml(estrategia.cluster)}</span>` : ""}
+
+      <div class="kv-grid" style="margin-top:12px">
+        ${linha("Status", estrategia.status)}
+        ${linha("Recomendado(a) para ES", estrategia.rec_para_es)}
+        ${linha("Escolhas no plano", `${estrategia.escolhas_no_plano} · ${estrategia.cluster_escolhas}`)}
+        ${linha("Tem carreira recomendada?", estrategia.tem_recomendada)}
+      </div>
+
+      ${estrategia.carreiras_recomendadas.length > 0 ? `
+        <label style="margin-top:14px">Carreiras recomendadas escolhidas</label>
+        <p class="hint" style="margin:0">${estrategia.carreiras_recomendadas.map(c => escapeHtml(c)).join(", ")}</p>` : ""}
+      ${estrategia.outras_carreiras.length > 0 ? `
+        <label style="margin-top:10px">Outras carreiras escolhidas</label>
+        <p class="hint" style="margin:0">${estrategia.outras_carreiras.map(c => escapeHtml(c)).join(", ")}</p>` : ""}
+
+      <label style="margin-top:16px">Acadêmico</label>
+      <div class="kv-grid">
+        ${linha("Engajamento EVO", estrategia.engajamento_evo !== null ? `${(estrategia.engajamento_evo * 100).toFixed(1)}% · ${estrategia.cluster_engajamento_evo}` : null)}
+        ${linha("Letrus", estrategia.letrus !== null ? `${estrategia.letrus} · ${estrategia.cluster_letrus}` : null)}
+        ${linha("PU1", estrategia.pu1 !== null ? `${estrategia.pu1} · ${estrategia.cluster_pu1}` : null)}
+        ${linha("PU2", estrategia.pu2 !== null ? `${estrategia.pu2} · ${estrategia.cluster_pu2}` : null)}
+        ${linha("ENEM Projetado", estrategia.enem_projetado !== null ? `${estrategia.enem_projetado} · ${estrategia.cluster_enem_projetado}` : null)}
+        ${linha("Simulado Evo", estrategia.simulado_evo !== null ? `${estrategia.simulado_evo} · ${estrategia.cluster_evo}` : null)}
+      </div>
+
+      <label style="margin-top:16px">Aprovação por métrica</label>
+      <div class="kv-grid">
+        ${linha("Pela PU1", estrategia.aprovacao_pu1)}
+        ${linha("Pela PU2", estrategia.aprovacao_pu2)}
+        ${linha("Pelo Simulado Evo", estrategia.aprovacao_evo)}
+        ${linha("Pelo ENEM Projetado", estrategia.aprovacao_enem_projetado)}
+      </div>
+      <div class="nf-status-msg ${aprovacaoOk(estrategia.aprovacao_selecionada) ? "emitida" : "aguardando"}" style="margin-top:10px">
+        ${aprovacaoOk(estrategia.aprovacao_selecionada) ? "★ " : ""}Nota selecionada${estrategia.nota_selecionada_valor !== null ? ` (${estrategia.nota_selecionada_valor})` : ""}: ${escapeHtml(estrategia.aprovacao_selecionada || "—")}
+      </div>
+    </div>`;
+}
+
+function renderProntuarioDetail(data, estrategia) {
   const aluno = data.aluno;
   const destaque = data.destaque;
   const souTutor = sessao.tipo === "tutor";
@@ -443,6 +503,8 @@ function renderProntuarioDetail(data) {
       <textarea id="destaque-aluno-justificativa" rows="2" placeholder="Ex.: conquista, superação, reversão de uma situação anterior">${escapeHtml(destaque.justificativa || "")}</textarea>
       <button class="btn small" style="margin-top:6px" onclick="salvarDestaqueAlunoUI()">Salvar</button>
     </div>
+
+    ${renderEstrategiaVestibularHTML(estrategia)}
 
     ${souTutor ? `
       <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:4px">
