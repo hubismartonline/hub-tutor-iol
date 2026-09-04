@@ -228,14 +228,9 @@ function sair() {
   // persistir no DOM entre sessões diferentes).
   dashVestData = null;
   document.getElementById("dash-vest-preenchimento").innerHTML = "";
-  document.getElementById("dash-vest-posicao").innerHTML = "";
-  document.getElementById("dash-vest-chips-posicao").innerHTML = "";
   document.getElementById("dash-vest-quadrantes").innerHTML = "";
-  document.getElementById("dash-vest-tabela-resumo").innerHTML = "";
   document.getElementById("dash-vest-nota-total-hint").textContent = "";
   document.getElementById("dash-vest-tabela-tutores").innerHTML = "";
-  document.getElementById("dash-vest-privadas").innerHTML = "";
-  document.getElementById("dash-vest-fragil").innerHTML = "";
   document.getElementById("dash-vest-drill").style.display = "none";
   document.getElementById("dash-vest-drill-tabela").innerHTML = "";
   document.getElementById("dash-vest-drill-lista").innerHTML = "";
@@ -894,7 +889,9 @@ async function iniciarDashboardTurma() {
 }
 
 // -------------------------------------------------------
-//  Estratégias de Vestibular (3EM) — tutor vê a própria turma,
+//  Estratégias de Vestibular — lê direto da planilha de análise da
+//  Fran/coordenação (Base de alunos), já com Evo Enem priorizado e
+//  os quadrantes Q1-Q4 calculados. Tutor vê a própria turma;
 //  coordenação vê todos os tutores comparados (com filtro de praça).
 // -------------------------------------------------------
 async function carregarDashboardVestibular() {
@@ -917,11 +914,7 @@ async function carregarDashboardVestibular() {
     dashVestData = r;
 
     renderPreenchimentoVestibular(r);
-    renderPosicaoVestibular(r);
-    renderChipsPosicaoVestibular(r);
     renderQuadrantesVestibular(r);
-    renderPrivadasVestibular(r);
-    renderRecomendacaoFragilVestibular(r);
 
     loading.style.display = "none";
     conteudo.style.display = "block";
@@ -930,252 +923,86 @@ async function carregarDashboardVestibular() {
   }
 }
 
+// ---- Preenchimento: usa "Cluster de escolhas" direto da planilha
+// (A-10 escolhas ou mais / B-De 7 a 9 / C-6 escolhas ou menos / D-Sem escolhas) ----
 function renderPreenchimentoVestibular(r) {
   const wrap = document.getElementById("dash-vest-preenchimento");
+  if (r.tutores.length === 0) { wrap.innerHTML = '<p class="hint">Nenhum aluno encontrado.</p>'; return; }
+
   if (r.escopo === "tutor") {
-    const t = r.tutores[0] || { total_alunos_3em: 0, acessou_hub: 0, preencheu_10: 0, preencheu_parcial: 0, nao_preencheu: 0 };
+    const t = r.tutores[0];
+    const chaves = Object.keys(t.preenchimento).sort();
     wrap.innerHTML = `
       <div class="stat-grid">
-        <div class="stat-tile"><div class="label">Alunos 3EM</div><div class="value">${t.total_alunos_3em}</div></div>
-        <div class="stat-tile"><div class="label">Já acessaram o Hub</div><div class="value">${t.acessou_hub}</div></div>
-        <div class="stat-tile"><div class="label">Preencheram as 10</div><div class="value">${t.preencheu_10}</div></div>
-        <div class="stat-tile"><div class="label">Parcial / Nenhuma</div><div class="value">${t.preencheu_parcial} / ${t.nao_preencheu}</div></div>
+        <div class="stat-tile"><div class="label">Total de alunos</div><div class="value">${t.total_alunos}</div></div>
+        ${chaves.map(k => `<div class="stat-tile"><div class="label">${escapeHtml(k)}</div><div class="value">${t.preenchimento[k]}</div></div>`).join("")}
       </div>`;
   } else {
-    if (r.tutores.length === 0) { wrap.innerHTML = '<p class="hint">Nenhum aluno de 3EM encontrado nesse filtro.</p>'; return; }
+    const todasChaves = new Set();
+    r.tutores.forEach(t => Object.keys(t.preenchimento).forEach(k => todasChaves.add(k)));
+    const chaves = Array.from(todasChaves).sort();
     wrap.innerHTML = `
       <table>
-        <thead><tr><th>Tutor(a)</th><th class="num">Alunos 3EM</th><th class="num">Acessaram o Hub</th><th class="num">Preencheram as 10</th><th class="num">Parcial</th><th class="num">Nenhuma</th></tr></thead>
+        <thead><tr><th>Tutor(a)</th><th class="num">Total</th>${chaves.map(k => `<th class="num">${escapeHtml(k)}</th>`).join("")}</tr></thead>
         <tbody>
           ${r.tutores.map(t => `
             <tr>
               <td>${escapeHtml(t.tutor_nome)}</td>
-              <td class="num">${t.total_alunos_3em}</td>
-              <td class="num">${t.acessou_hub}</td>
-              <td class="num">${t.preencheu_10}</td>
-              <td class="num">${t.preencheu_parcial}</td>
-              <td class="num">${t.nao_preencheu}</td>
+              <td class="num">${t.total_alunos}</td>
+              ${chaves.map(k => `<td class="num">${t.preenchimento[k] || 0}</td>`).join("")}
             </tr>`).join("")}
         </tbody>
       </table>`;
   }
 }
 
-// -------------------------------------------------------
-//  Posição das escolhas recomendadas (mutuamente exclusivo —
-//  sempre soma o total de alunos do escopo)
-// -------------------------------------------------------
-const POSICOES_VEST = [
-  { id: "top3",     label: "Recomendada nas 3 primeiras" },
-  { id: "restante", label: "Recomendada só nas 7 últimas" },
-  { id: "nenhuma",  label: "Sem nenhuma recomendada" },
-];
-
-function renderPosicaoVestibular(r) {
-  const wrap = document.getElementById("dash-vest-posicao");
-  if (r.escopo === "tutor") {
-    const t = r.tutores[0] || { posicao: { top3: 0, restante: 0, nenhuma: 0 } };
-    wrap.innerHTML = `
-      <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr)">
-        <div class="stat-tile"><div class="label">3 primeiras escolhas</div><div class="value">${t.posicao.top3}</div></div>
-        <div class="stat-tile"><div class="label">Só nas 7 últimas</div><div class="value">${t.posicao.restante}</div></div>
-        <div class="stat-tile"><div class="label">Nenhuma recomendada</div><div class="value">${t.posicao.nenhuma}</div></div>
-      </div>`;
-  } else {
-    if (r.tutores.length === 0) { wrap.innerHTML = ""; return; }
-    wrap.innerHTML = `
-      <table>
-        <thead><tr><th>Tutor(a)</th><th class="num">3 primeiras</th><th class="num">Só 7 últimas</th><th class="num">Nenhuma</th></tr></thead>
-        <tbody>
-          ${r.tutores.map(t => `
-            <tr>
-              <td>${escapeHtml(t.tutor_nome)}</td>
-              <td class="num">${t.posicao.top3}</td>
-              <td class="num">${t.posicao.restante}</td>
-              <td class="num">${t.posicao.nenhuma}</td>
-            </tr>`).join("")}
-        </tbody>
-      </table>`;
-  }
+// ---- Quadrantes Q1-Q4, já calculados e mutuamente exclusivos ----
+const CORES_QUADRANTE = {
+  "Q1": { cor: "#A68A00", bg: "#FFF9E0" },
+  "Q2": { cor: "#00838F", bg: "#E3F6F8" },
+  "Q3": { cor: "#C41E4B", bg: "#FDECF2" },
+  "Q4": { cor: "#5C6B85", bg: "#F0F2F5" },
+};
+function corDoCluster(nomeCluster) {
+  const m = String(nomeCluster).match(/Q[1-4]/);
+  return CORES_QUADRANTE[m ? m[0] : ""] || { cor: "#5C6B85", bg: "#F0F2F5" };
 }
 
-function renderChipsPosicaoVestibular(r) {
-  const contagens = { top3: 0, restante: 0, nenhuma: 0 };
-  r.alunos.forEach(a => { contagens[a.posicao_recomendada]++; });
-  const wrap = document.getElementById("dash-vest-chips-posicao");
-  wrap.innerHTML = POSICOES_VEST.map(p => `
-    <button class="chip" onclick="mostrarAlunosPosicaoVestibular('${p.id}')">${escapeHtml(p.label)} — ${contagens[p.id]}</button>
-  `).join("");
-}
-
-function mostrarAlunosPosicaoVestibular(posicaoId) {
-  if (!dashVestData) return;
-  const posInfo = POSICOES_VEST.find(p => p.id === posicaoId);
-  const alunos = dashVestData.alunos.filter(a => a.posicao_recomendada === posicaoId);
-
-  const drill = document.getElementById("dash-vest-drill");
-  const titulo = document.getElementById("dash-vest-drill-titulo");
-  const lista = document.getElementById("dash-vest-drill-lista");
-
-  titulo.textContent = `${posInfo.label} (${alunos.length})`;
-  if (alunos.length === 0) {
-    lista.innerHTML = '<p class="hint">Nenhum aluno nesse grupo.</p>';
-  } else {
-    lista.innerHTML = alunos.map(a => {
-      const linhasEscolhas = a.escolhas.map(e => {
-        let linha = `${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
-        linha += e.recomendada ? " · recomendada" : " · não recomendada";
-        return `<div class="escolha-linha${e.recomendada ? " escolha-destaque" : ""}">${e.recomendada ? "★ " : ""}${linha}</div>`;
-      }).join("");
-      return `
-        <div class="aluno-item" style="cursor:default">
-          <div class="nome">${a.recomendacao_fraca ? "⚠️ " : ""}${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}</div>
-          <div class="sub">${linhasEscolhas}</div>
-        </div>`;
-    }).join("");
-  }
-  drill.style.display = "block";
-}
-
-// -------------------------------------------------------
-//  Escolhas em universidades privadas (sem nota de corte na SISU —
-//  ajuda a distinguir "não tem nota porque é vestibular próprio" de
-//  "não tem nota porque não bateu o corte")
-// -------------------------------------------------------
-function renderPrivadasVestibular(r) {
-  const total = r.alunos.reduce((acc, a) => acc + a.escolhas.filter(e => e.provavel_privada).length, 0);
-  const el = document.getElementById("dash-vest-privadas");
-  el.innerHTML = `🏫 ${total} escolha(s) em universidades privadas/vestibular próprio (sem nota de corte na SISU) — clique para ver`;
-  el.onclick = mostrarEscolhasPrivadas;
-}
-
-function mostrarEscolhasPrivadas() {
-  if (!dashVestData) return;
-  const drill = document.getElementById("dash-vest-drill");
-  const titulo = document.getElementById("dash-vest-drill-titulo");
-  const lista = document.getElementById("dash-vest-drill-lista");
-
-  const porAluno = dashVestData.alunos
-    .map(a => ({ aluno: a, escolhas: a.escolhas.filter(e => e.provavel_privada) }))
-    .filter(x => x.escolhas.length > 0);
-
-  const totalEscolhas = porAluno.reduce((acc, x) => acc + x.escolhas.length, 0);
-  titulo.textContent = `Escolhas em universidades privadas (${totalEscolhas})`;
-  if (porAluno.length === 0) {
-    lista.innerHTML = '<p class="hint">Nenhuma escolha nessa condição.</p>';
-  } else {
-    lista.innerHTML = porAluno.map(x => {
-      const linhas = x.escolhas.map(e => `
-        <div class="escolha-linha escolha-destaque">★ ${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}${e.recomendada ? " · recomendada" : ""}</div>
-      `).join("");
-      return `
-        <div class="aluno-item" style="cursor:default">
-          <div class="nome">${escapeHtml(x.aluno.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(x.aluno.tutor) : ""}</div>
-          <div class="sub">${linhas}</div>
-        </div>`;
-    }).join("");
-  }
-  drill.style.display = "block";
-}
-
-// -------------------------------------------------------
-//  Recomendação frágil: poucas escolhas recomendadas (≤3) e nenhuma
-//  delas entre as 3 primeiras — o aluno "tem" uma recomendada, mas ela
-//  é secundária pra ele. Sinal pensado pro acompanhamento do tutor.
-// -------------------------------------------------------
-function renderRecomendacaoFragilVestibular(r) {
-  const total = r.alunos.filter(a => a.recomendacao_fraca).length;
-  const el = document.getElementById("dash-vest-fragil");
-  el.innerHTML = `⚠️ ${total} aluno(s) com recomendação frágil (poucas escolhas recomendadas e nenhuma entre as 3 primeiras) — clique para ver`;
-  el.onclick = mostrarAlunosRecomendacaoFragil;
-}
-
-function mostrarAlunosRecomendacaoFragil() {
-  if (!dashVestData) return;
-  const alunos = dashVestData.alunos.filter(a => a.recomendacao_fraca);
-
-  const drill = document.getElementById("dash-vest-drill");
-  const titulo = document.getElementById("dash-vest-drill-titulo");
-  const lista = document.getElementById("dash-vest-drill-lista");
-  document.getElementById("dash-vest-drill-tabela").innerHTML = "";
-
-  titulo.textContent = `Recomendação frágil (${alunos.length})`;
-  if (alunos.length === 0) {
-    lista.innerHTML = '<p class="hint">Nenhum aluno nessa condição.</p>';
-  } else {
-    lista.innerHTML = alunos.map(a => {
-      const linhasEscolhas = a.escolhas.map(e => {
-        let linha = `${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
-        linha += e.recomendada ? " · recomendada" : " · não recomendada";
-        return `<div class="escolha-linha${e.recomendada ? " escolha-destaque" : ""}">${e.recomendada ? "★ " : ""}${linha}</div>`;
-      }).join("");
-      return `
-        <div class="aluno-item" style="cursor:default">
-          <div class="nome">⚠️ ${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""} · ${a.total_recomendadas} de ${a.total_escolhas} recomendada(s)</div>
-          <div class="sub">${linhasEscolhas}</div>
-        </div>`;
-    }).join("");
-  }
-  drill.style.display = "block";
-}
-
-const GRUPOS_VEST = [
-  { id: "com_nota_recomendada",     codigo: "B2", label: "Com nota e recomendada",     cor: "#00838F", bg: "#E3F6F8",
-    desc: "Nota suficiente para pelo menos uma escolha recomendada." },
-  { id: "recomendada_sem_nota",     codigo: "D4", label: "Recomendada, sem nota",      cor: "#A68A00", bg: "#FFF9E0",
-    desc: "Tem escolha recomendada, mas a nota está abaixo do corte dela." },
-  { id: "com_nota_nao_recomendada", codigo: "A1", label: "Com nota, não recomendada",  cor: "#5C6B85", bg: "#F0F2F5",
-    desc: "Nota competitiva, mas nenhuma escolha com nota é recomendada." },
-  { id: "sem_nota_sem_recomendada", codigo: "C3", label: "Sem nota e sem recomendada", cor: "#C41E4B", bg: "#FDECF2",
-    desc: "Nota e escolha recomendada, as duas, a desenvolver." },
-];
-
-// ---- Quadrantes clicáveis (substituem o gráfico de barras) ----
 function renderQuadrantesVestibular(r) {
   const total = r.alunos.length;
-  const contagens = { com_nota_recomendada: 0, recomendada_sem_nota: 0, com_nota_nao_recomendada: 0, sem_nota_sem_recomendada: 0 };
-  r.alunos.forEach(a => { if (a.grupo_principal in contagens) contagens[a.grupo_principal]++; });
+  const contagens = {};
+  r.alunos.forEach(a => {
+    const c = a.cluster || "Sem dados suficientes";
+    contagens[c] = (contagens[c] || 0) + 1;
+  });
 
   document.getElementById("dash-vest-nota-total-hint").textContent =
-    total > 0 ? `${total} aluno(s) de 3EM no total (um aluno pode contar em mais de um quadrante, se tiver escolhas diferentes).` : "";
+    total > 0 ? `${total} aluno(s) no total.` : "";
 
+  const clusters = Object.keys(contagens).sort();
   const wrap = document.getElementById("dash-vest-quadrantes");
-  wrap.innerHTML = GRUPOS_VEST.map(g => {
-    const n = contagens[g.id];
+  wrap.innerHTML = clusters.map(c => {
+    const n = contagens[c];
     const pct = total > 0 ? ((n / total) * 100).toFixed(1).replace(".", ",") : "0,0";
+    const { cor, bg } = corDoCluster(c);
     return `
-      <div class="quad-box" style="background:${g.bg}; border-color:${g.cor}" onclick="mostrarAlunosGrupoVestibular('${g.id}')">
-        <div class="titulo">${escapeHtml(g.codigo)} — ${escapeHtml(g.label)}</div>
-        <div class="num" style="color:${g.cor}">${n}</div>
-        <div class="pct" style="color:${g.cor}">${pct}%</div>
-        <div class="desc">${escapeHtml(g.desc)}</div>
+      <div class="quad-box" style="background:${bg}; border-color:${cor}" onclick="mostrarAlunosClusterVestibular('${escapeHtml(c).replace(/'/g, "\\'")}')">
+        <div class="titulo">${escapeHtml(c)}</div>
+        <div class="num" style="color:${cor}">${n}</div>
+        <div class="pct" style="color:${cor}">${pct}%</div>
       </div>`;
   }).join("");
 
-  // Tabela-resumo no mesmo formato do cluster que a Fran já usa nos
-  // relatórios dela (cluster + contagem + total geral).
-  const tabelaResumo = document.getElementById("dash-vest-tabela-resumo");
-  tabelaResumo.innerHTML = `
-    <table style="margin-top:16px">
-      <thead><tr><th>Cluster</th><th class="num">Alunos</th></tr></thead>
-      <tbody>
-        ${GRUPOS_VEST.map(g => `<tr><td>${escapeHtml(g.codigo)} - ${escapeHtml(g.label)}</td><td class="num">${contagens[g.id]}</td></tr>`).join("")}
-        <tr><td><strong>Total geral</strong></td><td class="num"><strong>${total}</strong></td></tr>
-      </tbody>
-    </table>`;
-
-  // Coordenação também vê a comparação por tutor, numa tabela (o quadrante
-  // acima é sempre o agregado do filtro atual — praça ou geral).
   const tabelaWrap = document.getElementById("dash-vest-tabela-tutores");
   if (r.escopo === "coordenacao" && r.tutores.length > 0) {
     tabelaWrap.innerHTML = `
       <table>
-        <thead><tr><th>Tutor(a)</th>${GRUPOS_VEST.map(g => `<th class="num">${escapeHtml(g.codigo)}</th>`).join("")}</tr></thead>
+        <thead><tr><th>Tutor(a)</th>${clusters.map(c => `<th class="num">${escapeHtml(c)}</th>`).join("")}</tr></thead>
         <tbody>
           ${r.tutores.map(t => `
             <tr>
               <td>${escapeHtml(t.tutor_nome)}</td>
-              ${GRUPOS_VEST.map(g => `<td class="num">${t.grupos[g.id]}</td>`).join("")}
+              ${clusters.map(c => `<td class="num">${t.clusters[c] || 0}</td>`).join("")}
             </tr>`).join("")}
         </tbody>
       </table>`;
@@ -1184,71 +1011,34 @@ function renderQuadrantesVestibular(r) {
   }
 }
 
-// ---- Tabela de distância até o corte (só pro quadrante "recomendada, sem nota") ----
-function montarTabelaDistancia(alunos, grupoId) {
-  const faixas = [
-    { id: "perto",  label: "Até 10 pts abaixo do corte" },
-    { id: "medio",  label: "11–50 pts abaixo do corte" },
-    { id: "longe",  label: "Mais de 50 pts abaixo do corte" },
-  ];
-  const porFaixa = { perto: [], medio: [], longe: [] };
-
-  alunos.forEach(a => {
-    const candidatas = a.escolhas.filter(e => e.grupo === grupoId && e.proximidade && a.pu2 !== null && e.nota_corte !== null);
-    if (candidatas.length === 0) return;
-    const ordem = { perto: 0, medio: 1, longe: 2 };
-    candidatas.sort((x, y) => ordem[x.proximidade] - ordem[y.proximidade]);
-    const rep = candidatas[0]; // a escolha mais próxima do corte representa o aluno
-    porFaixa[rep.proximidade].push(rep.nota_corte - a.pu2);
-  });
-
-  const linhas = faixas.map(f => {
-    const dist = porFaixa[f.id];
-    if (dist.length === 0) return `<tr><td>${f.label}</td><td class="num">0</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>`;
-    const media = (dist.reduce((a, b) => a + b, 0) / dist.length).toFixed(1);
-    const min = Math.min(...dist).toFixed(1);
-    const max = Math.max(...dist).toFixed(1);
-    return `<tr><td>${f.label}</td><td class="num">${dist.length}</td><td class="num">${media} pts</td><td class="num">${min} pts</td><td class="num">${max} pts</td></tr>`;
-  }).join("");
-
-  return `
-    <table style="margin-bottom:18px">
-      <thead><tr><th>Faixa de distância</th><th class="num">Alunos</th><th class="num">Média</th><th class="num">Mín.</th><th class="num">Máx.</th></tr></thead>
-      <tbody>${linhas}</tbody>
-    </table>`;
-}
-
-function mostrarAlunosGrupoVestibular(grupoId) {
+function mostrarAlunosClusterVestibular(cluster) {
   if (!dashVestData) return;
-  const grupoInfo = GRUPOS_VEST.find(g => g.id === grupoId);
-  const alunos = dashVestData.alunos.filter(a => a.grupo_principal === grupoId);
+  const alunos = dashVestData.alunos.filter(a => (a.cluster || "Sem dados suficientes") === cluster);
 
   const drill = document.getElementById("dash-vest-drill");
   const titulo = document.getElementById("dash-vest-drill-titulo");
   const lista = document.getElementById("dash-vest-drill-lista");
-  const tabelaWrap = document.getElementById("dash-vest-drill-tabela");
+  document.getElementById("dash-vest-drill-tabela").innerHTML = "";
 
-  tabelaWrap.innerHTML = grupoId === "recomendada_sem_nota" ? montarTabelaDistancia(alunos, grupoId) : "";
-
-  titulo.textContent = `${grupoInfo.label} (${alunos.length})`;
+  titulo.textContent = `${cluster} (${alunos.length})`;
   if (alunos.length === 0) {
     lista.innerHTML = '<p class="hint">Nenhum aluno nesse grupo.</p>';
   } else {
     lista.innerHTML = alunos.map(a => {
-      // Mostra TODAS as escolhas do aluno — a(s) que bateu(ram) com o
-      // grupo clicado fica(m) sinalizada(s) com ★, não escondemos o resto.
-      const linhasEscolhas = a.escolhas.map(e => {
-        const destaque = e.grupo === grupoId;
-        let linha = `${escapeHtml(e.letra)}) ${escapeHtml(e.curso)} — ${escapeHtml(e.universidade)}`;
-        linha += e.recomendada ? " · recomendada" : " · não recomendada";
-        linha += e.nota_corte !== null ? ` · corte ${e.nota_corte}` : " · sem corte encontrado";
-        if (e.proximidade) linha += ` · ${e.proximidade === "perto" ? "perto da nota" : e.proximidade === "medio" ? "distância média" : "longe da nota"}`;
-        return `<div class="escolha-linha${destaque ? " escolha-destaque" : ""}">${destaque ? "★ " : ""}${linha}</div>`;
-      }).join("");
+      const recomendadas = a.carreiras_recomendadas.length > 0
+        ? a.carreiras_recomendadas.map(c => escapeHtml(c)).join(", ")
+        : "Nenhuma";
+      const aprovacao = a.aprovacao_nota_selecionada && !a.aprovacao_nota_selecionada.toLowerCase().startsWith("não aprovado")
+        ? `<div class="escolha-linha escolha-destaque">★ Aprovaria em: ${escapeHtml(a.aprovacao_nota_selecionada)}</div>`
+        : "";
       return `
         <div class="aluno-item" style="cursor:default">
-          <div class="nome">${a.recomendacao_fraca ? "⚠️ " : ""}${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}${a.pu2 !== null ? " · PU2: " + a.pu2 : " · sem PU2"}</div>
-          <div class="sub">${linhasEscolhas}</div>
+          <div class="nome">${escapeHtml(a.nome)}${dashVestData.escopo === "coordenacao" ? " · " + escapeHtml(a.tutor) : ""}${a.nota_selecionada_valor !== null ? " · Nota: " + a.nota_selecionada_valor : ""}</div>
+          <div class="sub">
+            ${escapeHtml(String(a.escolhas_no_plano))} escolha(s) no plano · ${escapeHtml(a.cluster_escolhas)}<br>
+            Carreiras recomendadas escolhidas: ${recomendadas}
+            ${aprovacao}
+          </div>
         </div>`;
     }).join("");
   }
