@@ -146,6 +146,12 @@ tr:hover td { background: #FAFBFD; }
   padding: 3px 10px; border-radius: 20px; background: #FFF6D9; color: #8a6d00;
 }
 
+.kv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; }
+.kv-row { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.kv-label { color: var(--text2); }
+.kv-value { color: var(--text); font-weight: 600; text-align: right; }
+@media (max-width: 600px) { .kv-grid { grid-template-columns: 1fr; } }
+
 .prontuario-aluno-header h2 { margin: 0 0 4px; font-size: 18px; color: var(--navy); }
 .prontuario-aluno-header p.hint { margin: 0 0 14px; }
 
