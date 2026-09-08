@@ -170,6 +170,8 @@ function entrarNoApp(email, dados) {
   // da coordenação ainda vai entrar com o Painel de coordenação.
   const navContas = document.querySelector('.nav-item[data-page="contas"]');
   if (navContas) navContas.style.display = sessao.tipo === "tutor" ? "" : "none";
+  const navFoco = document.querySelector('.nav-item[data-page="foco"]');
+  if (navFoco) navFoco.style.display = sessao.tipo === "tutor" ? "" : "none";
   const navDashboard = document.querySelector('.nav-item[data-page="dashboard"]');
   if (navDashboard) navDashboard.style.display = "";
   const navAlunos = document.querySelector('.nav-item[data-page="alunos"]');
@@ -235,6 +237,16 @@ function sair() {
   document.getElementById("dash-vest-drill-tabela").innerHTML = "";
   document.getElementById("dash-vest-drill-lista").innerHTML = "";
   document.getElementById("dash-vest-praca").value = "";
+
+  // Idem pra Foco da Semana e Guias.
+  document.getElementById("foco-conteudo").style.display = "none";
+  document.getElementById("foco-loading").style.display = "block";
+  document.getElementById("foco-loading").textContent = "Carregando...";
+  document.getElementById("foco-combinados-lista").innerHTML = "";
+  document.getElementById("foco-alertas-lista").innerHTML = "";
+  document.getElementById("guias-lista").innerHTML = "";
+  document.getElementById("guias-loading").style.display = "block";
+  document.getElementById("guias-loading").textContent = "Carregando...";
 }
 
 // -------------------------------------------------------
@@ -251,6 +263,8 @@ function irPara(pagina) {
   if (pagina === "prontuario") iniciarProntuario();
   if (pagina === "contas") iniciarPrestacaoContas();
   if (pagina === "dashboard") iniciarDashboardTurma();
+  if (pagina === "foco") iniciarFocoSemana();
+  if (pagina === "guias") iniciarGuias();
 }
 
 async function carregarMeusAlunos() {
@@ -1105,4 +1119,94 @@ function mostrarAlunosClusterVestibular(cluster) {
     }).join("");
   }
   drill.style.display = "block";
+}
+
+// =============================================================
+//  FOCO DA SEMANA (Fase 1 — combinados com prazo + alertas de
+//  estratégia de vestibular). Peer-to-peer entre colegas e campanhas
+//  da coordenação ainda não entraram — ver plano combinado com a Fran.
+// =============================================================
+async function iniciarFocoSemana() {
+  const loading = document.getElementById("foco-loading");
+  const conteudo = document.getElementById("foco-conteudo");
+  loading.style.display = "block";
+  loading.textContent = "Carregando...";
+  conteudo.style.display = "none";
+
+  try {
+    const r = await chamarBackend("buscar_foco_semana", { email: sessao.email, token_tutor: sessao.token });
+    if (!r.ok) { loading.textContent = r.erro || "Não foi possível carregar."; return; }
+
+    renderCombinadosVencendo(r.combinados);
+    renderAlertasVestibularCurso(r.alertas_vestibular);
+
+    loading.style.display = "none";
+    conteudo.style.display = "block";
+  } catch (e) {
+    loading.textContent = "Não foi possível conectar. Tente novamente.";
+  }
+}
+
+function renderCombinadosVencendo(combinados) {
+  const wrap = document.getElementById("foco-combinados-lista");
+  if (!combinados || combinados.length === 0) {
+    wrap.innerHTML = '<p class="hint">Nenhum combinado com prazo marcado no momento.</p>';
+    return;
+  }
+  wrap.innerHTML = combinados.map(c => {
+    const vencido = c.dias_para_vencer < 0;
+    const hoje = c.dias_para_vencer === 0;
+    let quando;
+    if (vencido) quando = `venceu há ${Math.abs(c.dias_para_vencer)} dia(s)`;
+    else if (hoje) quando = "vence hoje";
+    else quando = `vence em ${c.dias_para_vencer} dia(s)`;
+    return `
+      <div class="aluno-item" style="cursor:pointer" onclick="irPara('prontuario'); setTimeout(() => selecionarAlunoProntuario('${c.aluno_ra}'), 50)">
+        <div class="nome">${vencido ? "⚠️ " : ""}${escapeHtml(c.aluno_nome)} · ${escapeHtml(quando)}</div>
+        <div class="sub">${escapeHtml(c.combinado)}</div>
+      </div>`;
+  }).join("");
+}
+
+function renderAlertasVestibularCurso(alertas) {
+  const wrap = document.getElementById("foco-alertas-lista");
+  if (!alertas || alertas.length === 0) {
+    wrap.innerHTML = '<p class="hint">Nenhum alerta no momento.</p>';
+    return;
+  }
+  wrap.innerHTML = alertas.map(a => `
+    <div class="aluno-item" style="cursor:pointer" onclick="irPara('prontuario'); setTimeout(() => selecionarAlunoProntuario('${a.aluno_ra}'), 50)">
+      <div class="nome">${escapeHtml(a.aluno_nome)} · quer ${escapeHtml(a.curso)}</div>
+      <div class="sub">Nota ainda não é suficiente (${escapeHtml(a.cluster)}) — pode valer uma conversa sobre plano B.</div>
+    </div>`).join("");
+}
+
+// =============================================================
+//  GUIAS — lista simples, curso + título + link. Preenchida pela
+//  Fran direto na planilha (aba guias_curso); começa vazia.
+// =============================================================
+async function iniciarGuias() {
+  const loading = document.getElementById("guias-loading");
+  const wrap = document.getElementById("guias-lista");
+  loading.style.display = "block";
+  loading.textContent = "Carregando...";
+  wrap.innerHTML = "";
+
+  try {
+    const r = await chamarBackend("buscar_guias_curso", { email: sessao.email, token_tutor: sessao.token });
+    loading.style.display = "none";
+    if (!r.ok) { wrap.innerHTML = `<p class="hint">${escapeHtml(r.erro || "Não foi possível carregar.")}</p>`; return; }
+    if (!r.guias || r.guias.length === 0) {
+      wrap.innerHTML = '<p class="hint">Nenhum guia cadastrado ainda.</p>';
+      return;
+    }
+    wrap.innerHTML = r.guias.map(g => `
+      <div class="aluno-item">
+        <div class="nome">${escapeHtml(g.curso)}${g.titulo ? " — " + escapeHtml(g.titulo) : ""}</div>
+        ${g.link ? `<div class="sub"><a href="${escapeHtml(g.link)}" target="_blank" rel="noopener">Abrir guia</a></div>` : '<div class="sub">Link ainda não cadastrado.</div>'}
+      </div>`).join("");
+  } catch (e) {
+    loading.style.display = "none";
+    wrap.innerHTML = '<p class="hint">Não foi possível conectar. Tente novamente.</p>';
+  }
 }
