@@ -443,6 +443,14 @@ async function selecionarAlunoProntuario(ra) {
 //  está na "Base de alunos " da coordenação pra esse RA. Se o aluno
 //  não estiver nessa base (ex: fora do 3EM), não mostra nada.
 // -------------------------------------------------------
+// Cada escolha vem como {texto, curso, universidade, nota_corte}. Mostra
+// a nota de corte junto quando ela existe na aba "Nota de corte".
+function listaEscolhasComNota(escolhas) {
+  return `<div class="escolha-linha-lista">${escolhas.map(e =>
+    `<div class="escolha-linha">${escapeHtml(e.texto)}${e.nota_corte !== null ? ` · corte ${e.nota_corte}` : " · sem corte cadastrado"}</div>`
+  ).join("")}</div>`;
+}
+
 function renderEstrategiaVestibularHTML(estrategia) {
   if (!estrategia) return "";
 
@@ -467,10 +475,10 @@ function renderEstrategiaVestibularHTML(estrategia) {
 
       ${estrategia.carreiras_recomendadas.length > 0 ? `
         <label style="margin-top:14px">Carreiras recomendadas escolhidas</label>
-        <p class="hint" style="margin:0">${estrategia.carreiras_recomendadas.map(c => escapeHtml(c)).join(", ")}</p>` : ""}
+        ${listaEscolhasComNota(estrategia.carreiras_recomendadas)}` : ""}
       ${estrategia.outras_carreiras.length > 0 ? `
         <label style="margin-top:10px">Outras carreiras escolhidas</label>
-        <p class="hint" style="margin:0">${estrategia.outras_carreiras.map(c => escapeHtml(c)).join(", ")}</p>` : ""}
+        ${listaEscolhasComNota(estrategia.outras_carreiras)}` : ""}
 
       <label style="margin-top:16px">Acadêmico</label>
       <div class="kv-grid">
