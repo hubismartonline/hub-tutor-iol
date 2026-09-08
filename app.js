@@ -30,7 +30,9 @@ function chamarBackend(acao, dados) {
     xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
     xhr.onload = function () {
       try {
-        resolve(JSON.parse(xhr.responseText));
+        const resp = JSON.parse(xhr.responseText);
+        if (resp && resp.erro && /sess(a|ã)o expirada/i.test(resp.erro)) limparSessaoLocal();
+        resolve(resp);
       } catch (e) {
         reject(new Error("Resposta inválida do servidor."));
       }
@@ -152,10 +154,42 @@ async function confirmarERedefinirSenha() {
 // -------------------------------------------------------
 //  ENTRAR NO APP (depois de login OU criação de senha)
 // -------------------------------------------------------
+// -------------------------------------------------------
+//  Sessão "grudada" no navegador — sem isso, recarregar a página
+//  pedia login de novo toda vez. Só guarda o essencial (nada de
+//  senha); o token já expira sozinho em 6h no backend.
+// -------------------------------------------------------
+const CHAVE_SESSAO_LOCAL = "hubTutorSessao";
+
+function salvarSessaoLocal(email, dados) {
+  try {
+    localStorage.setItem(CHAVE_SESSAO_LOCAL, JSON.stringify({
+      email: email,
+      token: dados.token_tutor,
+      tipo: dados.tipo || "tutor",
+      nome: dados.nome || email,
+      serie_responsavel: dados.serie_responsavel || "",
+      praca_responsavel: dados.praca_responsavel || [],
+    }));
+  } catch (e) { /* navegador pode bloquear localStorage (modo anônimo etc.) — sem problema, só não persiste */ }
+}
+
+function limparSessaoLocal() {
+  try { localStorage.removeItem(CHAVE_SESSAO_LOCAL); } catch (e) {}
+}
+
+function restaurarSessaoLocal() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_SESSAO_LOCAL);
+    return bruto ? JSON.parse(bruto) : null;
+  } catch (e) { return null; }
+}
+
 function entrarNoApp(email, dados) {
   sessao.email = email;
   sessao.token = dados.token_tutor;
   sessao.tipo = dados.tipo || "tutor";
+  salvarSessaoLocal(email, dados);
 
   document.getElementById("tutor-nome").textContent = dados.nome || email;
   const serieTxt = dados.serie_responsavel || "—";
@@ -186,11 +220,11 @@ function entrarNoApp(email, dados) {
 
 function sair() {
   sessao = { email: "", token: "", tipo: "" };
+  limparSessaoLocal();
   document.getElementById("view-app").style.display = "none";
   document.getElementById("view-login").style.display = "flex";
   irParaEtapa("login");
   document.getElementById("login-senha").value = "";
-
   // Limpa o estado de "Meus Alunos" pra não vazar dados do tutor
   // anterior entre sessões (mesmo padrão do Hub do Aluno).
   document.getElementById("alunos-tbody").innerHTML = "";
@@ -1218,3 +1252,22 @@ async function iniciarGuias() {
     wrap.innerHTML = '<p class="hint">Não foi possível conectar. Tente novamente.</p>';
   }
 }
+
+// -------------------------------------------------------
+//  Ao carregar a página: se tiver uma sessão salva, entra direto
+//  sem pedir login de novo. Se o token já tiver expirado, a primeira
+//  chamada ao backend volta com "Sessão expirada" e cada tela já
+//  mostra isso normalmente — o usuário só precisa clicar em Sair e
+//  logar de novo nesse caso raro.
+// -------------------------------------------------------
+(function tentarRestaurarSessao() {
+  const salva = restaurarSessaoLocal();
+  if (!salva || !salva.email || !salva.token) return;
+  entrarNoApp(salva.email, {
+    token_tutor: salva.token,
+    tipo: salva.tipo,
+    nome: salva.nome,
+    serie_responsavel: salva.serie_responsavel,
+    praca_responsavel: salva.praca_responsavel,
+  });
+})();
