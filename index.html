@@ -99,9 +99,10 @@
 
       <div class="nav-item active" data-page="alunos" onclick="irPara('alunos')">🧑‍🎓 Meus Alunos</div>
       <div class="nav-item" data-page="contas" onclick="irPara('contas')">📝 Prestação de contas</div>
-      <div class="nav-item disabled" title="Ainda não disponível">📌 Foco da Semana <span class="em-breve">em breve</span></div>
+      <div class="nav-item" data-page="foco" onclick="irPara('foco')">📌 Foco da Semana</div>
       <div class="nav-item" data-page="prontuario" onclick="irPara('prontuario')">🗂️ Prontuário do aluno</div>
       <div class="nav-item" data-page="dashboard" onclick="irPara('dashboard')">📊 Dashboard da turma</div>
+      <div class="nav-item" data-page="guias" onclick="irPara('guias')">📚 Guias</div>
 
       <button class="btn ghost full" style="margin-top:auto" onclick="sair()">Sair</button>
     </div>
@@ -168,10 +169,33 @@
         </div>
       </div>
 
+      <!-- ===================== FOCO DA SEMANA ===================== -->
+      <div id="page-foco" class="page" style="display:none">
+        <div class="page-header">
+          <h2>Foco da Semana</h2>
+          <p>O que precisa da sua atenção esta semana.</p>
+        </div>
+
+        <div id="foco-loading" class="hint">Carregando...</div>
+
+        <div id="foco-conteudo" style="display:none">
+          <div class="card">
+            <h3>📌 Combinados com prazo</h3>
+            <p class="hint">Vem do Prontuário — só aparece quando você marca um prazo de retorno num combinado.</p>
+            <div id="foco-combinados-lista"></div>
+          </div>
+
+          <div class="card">
+            <h3>🎯 Alertas de estratégia de vestibular</h3>
+            <p class="hint">Aluno escolheu um desses cursos, mas a nota ainda não é suficiente — pode valer uma conversa sobre plano B.</p>
+            <div id="foco-alertas-lista"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===================== PRONTUÁRIO DO ALUNO ===================== -->
       <div id="page-prontuario" class="page" style="display:none">
-        <div class="page-header">
-          <h2>Prontuário do aluno</h2>
+        <div class="page-header">          <h2>Prontuário do aluno</h2>
           <p>Histórico de contatos por aluno — fica registrado mesmo depois de resolvido.</p>
         </div>
 
@@ -264,6 +288,16 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ===================== GUIAS ===================== -->
+      <div id="page-guias" class="page" style="display:none">
+        <div class="page-header">
+          <h2>Guias</h2>
+          <p>Materiais de apoio pra conversar sobre plano B em cursos concorridos.</p>
+        </div>
+        <div id="guias-loading" class="hint">Carregando...</div>
+        <div id="guias-lista"></div>
       </div>
     </div>
   </div>
