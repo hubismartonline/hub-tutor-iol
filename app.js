@@ -279,6 +279,8 @@ function sair() {
   document.getElementById("foco-combinados-lista").innerHTML = "";
   document.getElementById("foco-alertas-lista").innerHTML = "";
   document.getElementById("foco-coruja-lista").innerHTML = "";
+  document.getElementById("foco-rodada-lista").innerHTML = "";
+  document.getElementById("foco-aniversariantes-lista").innerHTML = "";
   document.getElementById("guias-lista").innerHTML = "";
   document.getElementById("guias-loading").style.display = "block";
   document.getElementById("guias-loading").textContent = "Carregando...";
@@ -1265,6 +1267,8 @@ async function iniciarFocoSemana() {
     renderCombinadosVencendo(r.combinados);
     renderAlertasVestibularCurso(r.alertas_vestibular);
     renderSinaisCoruja(r.sinais_coruja);
+    renderAlertasRodadaEstrategica(r.alertas_rodada);
+    renderAniversariantes(r.aniversariantes);
 
     loading.style.display = "none";
     conteudo.style.display = "block";
@@ -1318,6 +1322,35 @@ function renderSinaisCoruja(sinais) {
       <div class="nome">${escapeHtml(s.aluno_nome)} · ${escapeHtml(s.topico)}</div>
       ${s.resposta ? `<div class="sub">"${escapeHtml(s.resposta)}"</div>` : ""}
     </div>`).join("");
+}
+
+function renderAlertasRodadaEstrategica(alertas) {
+  const wrap = document.getElementById("foco-rodada-lista");
+  if (!alertas || alertas.length === 0) {
+    wrap.innerHTML = '<p class="hint">Nenhum alerta no momento.</p>';
+    return;
+  }
+  wrap.innerHTML = alertas.map(a => `
+    <div class="aluno-item" style="cursor:pointer" onclick="irPara('prontuario'); setTimeout(() => selecionarAlunoProntuario('${a.aluno_ra}'), 50)">
+      <div class="nome">${escapeHtml(a.aluno_nome)}</div>
+      <div class="sub">${escapeHtml(a.texto)}</div>
+    </div>`).join("");
+}
+
+function renderAniversariantes(aniversariantes) {
+  const wrap = document.getElementById("foco-aniversariantes-lista");
+  if (!aniversariantes || aniversariantes.length === 0) {
+    wrap.innerHTML = '<p class="hint">Nenhum aniversário nos próximos 7 dias.</p>';
+    return;
+  }
+  wrap.innerHTML = aniversariantes.map(a => {
+    const quando = a.dias_para_aniversario === 0 ? "hoje! 🎉" : `em ${a.dias_para_aniversario} dia(s)`;
+    return `
+    <div class="aluno-item" style="cursor:pointer" onclick="irPara('prontuario'); setTimeout(() => selecionarAlunoProntuario('${a.aluno_ra}'), 50)">
+      <div class="nome">${escapeHtml(a.aluno_nome)}</div>
+      <div class="sub">Aniversário ${quando}</div>
+    </div>`;
+  }).join("");
 }
 
 // =============================================================
