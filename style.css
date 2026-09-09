@@ -129,7 +129,8 @@ tr:hover td { background: #FAFBFD; }
 }
 .card h3 { margin: 0 0 4px; font-size: 15px; color: var(--navy); }
 
-.prontuario-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+.prontuario-layout { display: block; }
+.prontuario-layout > div:first-child { margin-bottom: 20px; }
 
 .aluno-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .aluno-item {
@@ -271,10 +272,6 @@ td.num, th.num { text-align: right; }
 
 @media (max-width: 720px) {
   .quad-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 720px) {
-  .prontuario-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
