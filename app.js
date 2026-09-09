@@ -318,14 +318,22 @@ async function carregarMeusAlunos() {
     if (!r.ok) { vazio.textContent = r.erro || "Não foi possível carregar seus alunos."; vazio.style.display = "block"; return; }
     if (!r.alunos || r.alunos.length === 0) { vazio.style.display = "block"; return; }
 
-    tbody.innerHTML = r.alunos.map(a => `
+    tbody.innerHTML = r.alunos.map(a => {
+      const cor = a.quadrante ? corDoCluster(a.quadrante).cor : "#5C6B85";
+      const atencao = a.ponto_atencao && a.ponto_atencao.length > 0
+        ? `<span title="${escapeHtml(a.ponto_atencao.join(" · "))}">⚠️ ${a.ponto_atencao.length}</span>`
+        : "—";
+      return `
       <tr>
         <td>${a.ra}</td>
         <td>${a.nome}</td>
         <td>${a.serie}</td>
         <td>${a.praca}</td>
-      </tr>
-    `).join("");
+        <td>${a.preenchimento ? escapeHtml(a.preenchimento) : "—"}</td>
+        <td>${a.quadrante ? `<span style="color:${cor}; font-weight:700">${escapeHtml(a.quadrante)}</span>` : "—"}</td>
+        <td>${atencao}</td>
+      </tr>`;
+    }).join("");
     tabela.style.display = "table";
   } catch (e) {
     loading.style.display = "none";
