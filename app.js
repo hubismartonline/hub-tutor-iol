@@ -278,6 +278,7 @@ function sair() {
   document.getElementById("foco-loading").textContent = "Carregando...";
   document.getElementById("foco-combinados-lista").innerHTML = "";
   document.getElementById("foco-alertas-lista").innerHTML = "";
+  document.getElementById("foco-coruja-lista").innerHTML = "";
   document.getElementById("guias-lista").innerHTML = "";
   document.getElementById("guias-loading").style.display = "block";
   document.getElementById("guias-loading").textContent = "Carregando...";
@@ -1181,6 +1182,7 @@ async function iniciarFocoSemana() {
 
     renderCombinadosVencendo(r.combinados);
     renderAlertasVestibularCurso(r.alertas_vestibular);
+    renderSinaisCoruja(r.sinais_coruja);
 
     loading.style.display = "none";
     conteudo.style.display = "block";
@@ -1220,6 +1222,19 @@ function renderAlertasVestibularCurso(alertas) {
     <div class="aluno-item" style="cursor:pointer" onclick="irPara('prontuario'); setTimeout(() => selecionarAlunoProntuario('${a.aluno_ra}'), 50)">
       <div class="nome">${escapeHtml(a.aluno_nome)} · quer ${escapeHtml(a.curso)}</div>
       <div class="sub">Nota ainda não é suficiente (${escapeHtml(a.cluster)}) — pode valer uma conversa sobre plano B.</div>
+    </div>`).join("");
+}
+
+function renderSinaisCoruja(sinais) {
+  const wrap = document.getElementById("foco-coruja-lista");
+  if (!sinais || sinais.length === 0) {
+    wrap.innerHTML = '<p class="hint">Nenhum sinal recente.</p>';
+    return;
+  }
+  wrap.innerHTML = sinais.map(s => `
+    <div class="aluno-item" style="cursor:pointer" onclick="irPara('prontuario'); setTimeout(() => selecionarAlunoProntuario('${s.aluno_ra}'), 50)">
+      <div class="nome">${escapeHtml(s.aluno_nome)} · ${escapeHtml(s.topico)}</div>
+      ${s.resposta ? `<div class="sub">"${escapeHtml(s.resposta)}"</div>` : ""}
     </div>`).join("");
 }
 
