@@ -472,13 +472,18 @@ async function selecionarAlunoProntuario(ra) {
   });
 
   try {
-    const [r, rEstrategia] = await Promise.all([
+    const [r, rEstrategia, rRodada] = await Promise.all([
       chamarBackend("buscar_prontuario", { email: sessao.email, token_tutor: sessao.token, aluno_ra: ra }),
       chamarBackend("buscar_estrategia_vestibular_aluno", { email: sessao.email, token_tutor: sessao.token, aluno_ra: ra }),
+      chamarBackend("buscar_rodada_estrategica_aluno", { email: sessao.email, token_tutor: sessao.token, aluno_ra: ra }),
     ]);
     if (!r.ok) { det.innerHTML = `<p class="hint">${escapeHtml(r.erro || "Não foi possível carregar o prontuário.")}</p>`; return; }
     prontuarioAlunoAtualNome = r.aluno.nome;
-    renderProntuarioDetail(r, rEstrategia && rEstrategia.ok ? rEstrategia.estrategia : null);
+    renderProntuarioDetail(
+      r,
+      rEstrategia && rEstrategia.ok ? rEstrategia.estrategia : null,
+      rRodada && rRodada.ok ? rRodada.rodada : null
+    );
   } catch (e) {
     det.innerHTML = '<p class="hint">Não foi possível conectar. Tente novamente.</p>';
   }
@@ -553,7 +558,51 @@ function renderEstrategiaVestibularHTML(estrategia) {
     </div>`;
 }
 
-function renderProntuarioDetail(data, estrategia) {
+// -------------------------------------------------------
+//  Rodada Estratégica (Monday.com) — enquanto os tutores ainda
+//  preenchem lá, esse card mostra ao vivo o que está no board de
+//  grupos + o subitem do aluno. "Saúde Mental" só chega aqui se o
+//  backend decidiu mostrar (tutor responsável); se vier null, o
+//  campo simplesmente não aparece.
+// -------------------------------------------------------
+function renderRodadaEstrategicaHTML(rodada) {
+  if (!rodada) return "";
+
+  const linha = (label, valor) => (valor === null || valor === undefined || valor === "")
+    ? ""
+    : `<div class="kv-row"><span class="kv-label">${escapeHtml(label)}</span><span class="kv-value">${escapeHtml(String(valor))}</span></div>`;
+
+  return `
+    <div class="card" style="margin-top:4px; margin-bottom:16px">
+      <h3>Rodada Estratégica <span class="hint" style="font-weight:400">(via Monday — ${escapeHtml(rodada.grupo.nome_grupo)})</span></h3>
+
+      <div class="kv-grid" style="margin-top:12px">
+        ${linha("Status individual", rodada.status)}
+        ${linha("Data da conversa", rodada.data)}
+        ${linha("Mobilidade", rodada.mobilidade)}
+        ${linha("Recomendação da tutoria", rodada.recomendacao_tutoria)}
+        ${linha("Vestibulares parceiros", rodada.vestibulares_parceiros)}
+        ${linha("Inscrição vestibular parceiro", rodada.inscricao_parceiro)}
+        ${linha("ENEM 2025", rodada.enem_2025)}
+        ${linha("Nota PU", rodada.nota_pu)}
+        ${linha("Simulado EVO 1", rodada.simulado_evo1)}
+        ${linha("Simulado EVO 2", rodada.simulado_evo2)}
+        ${rodada.saude_mental ? linha("Saúde Mental", rodada.saude_mental) : ""}
+      </div>
+
+      <label style="margin-top:16px">Sobre o grupo (${escapeHtml(rodada.grupo.familia_cursos)})</label>
+      <div class="kv-grid">
+        ${linha("Status C1", rodada.grupo.status_c1)}
+        ${linha("Data da conversa (grupo)", rodada.grupo.data_conversa)}
+        ${linha("Encaminhamento", rodada.grupo.encaminhamento)}
+      </div>
+      ${rodada.grupo.observacoes ? `
+        <label style="margin-top:12px">Observações do tutor</label>
+        <p class="hint" style="margin:0; white-space:pre-wrap">${escapeHtml(rodada.grupo.observacoes)}</p>` : ""}
+    </div>`;
+}
+
+function renderProntuarioDetail(data, estrategia, rodada) {
   const aluno = data.aluno;
   const destaque = data.destaque;
   const souTutor = sessao.tipo === "tutor";
@@ -577,6 +626,7 @@ function renderProntuarioDetail(data, estrategia) {
     </div>
 
     ${renderEstrategiaVestibularHTML(estrategia)}
+    ${renderRodadaEstrategicaHTML(rodada)}
 
     ${souTutor ? `
       <div style="border-top:1px solid var(--border); padding-top:16px; margin-top:4px">
