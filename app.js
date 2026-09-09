@@ -597,9 +597,26 @@ function renderRodadaEstrategicaHTML(rodada) {
         ${linha("Encaminhamento", rodada.grupo.encaminhamento)}
       </div>
       ${rodada.grupo.observacoes ? `
-        <label style="margin-top:12px">Observações do tutor</label>
+        <label style="margin-top:12px">Observações do tutor (grupo)</label>
         <p class="hint" style="margin:0; white-space:pre-wrap">${escapeHtml(rodada.grupo.observacoes)}</p>` : ""}
+
+      ${rodada.atualizacoes && rodada.atualizacoes.length > 0 ? `
+        <label style="margin-top:16px">Anotações da conversa individual (mais recente primeiro)</label>
+        <div class="escolha-linha-lista">
+          ${rodada.atualizacoes.map(a => `
+            <div class="escolha-linha" style="white-space:pre-wrap; margin-bottom:10px">
+              <strong>${escapeHtml(formatarDataMonday(a.data))}${a.autor ? " · " + escapeHtml(a.autor) : ""}</strong><br>
+              ${escapeHtml(a.texto)}
+            </div>`).join("")}
+        </div>` : ""}
     </div>`;
+}
+
+function formatarDataMonday(isoStr) {
+  if (!isoStr) return "";
+  const d = new Date(isoStr);
+  if (isNaN(d)) return isoStr;
+  return d.toLocaleDateString("pt-BR");
 }
 
 function renderProntuarioDetail(data, estrategia, rodada) {
