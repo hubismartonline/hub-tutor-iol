@@ -444,12 +444,19 @@ async function buscarAlunosProntuarioCoordenacao() {
 // -------------------------------------------------------
 function renderListaAlunosProntuario(alunos, containerId) {
   const container = document.getElementById(containerId);
-  container.innerHTML = alunos.map(a => `
-    <div class="aluno-item ${a.ra === prontuarioAlunoAtualRA ? "active" : ""}" onclick="selecionarAlunoProntuario('${a.ra}')">
-      <div class="nome">${escapeHtml(a.nome)}</div>
-      <div class="sub">${escapeHtml(a.serie || "")}${a.praca ? " · " + escapeHtml(a.praca) : ""}${a.tutor ? " · " + escapeHtml(a.tutor) : ""}</div>
-    </div>
-  `).join("");
+  if (!alunos || alunos.length === 0) {
+    container.innerHTML = '<p class="hint">Nenhum aluno encontrado.</p>';
+    return;
+  }
+  const opcoes = alunos.map(a => `
+    <option value="${a.ra}" ${a.ra === prontuarioAlunoAtualRA ? "selected" : ""}>
+      ${escapeHtml(a.nome)}${a.serie ? " — " + escapeHtml(a.serie) : ""}${a.praca ? " · " + escapeHtml(a.praca) : ""}${a.tutor ? " · " + escapeHtml(a.tutor) : ""}
+    </option>`).join("");
+  container.innerHTML = `
+    <select onchange="if (this.value) selecionarAlunoProntuario(this.value)">
+      <option value="">Selecione um aluno...</option>
+      ${opcoes}
+    </select>`;
 }
 
 // -------------------------------------------------------
@@ -460,8 +467,8 @@ async function selecionarAlunoProntuario(ra) {
   const det = document.getElementById("prontuario-detail");
   det.innerHTML = '<p class="hint">Carregando prontuário...</p>';
 
-  document.querySelectorAll(".aluno-item").forEach(el => {
-    el.classList.toggle("active", el.getAttribute("onclick") === `selecionarAlunoProntuario('${ra}')`);
+  document.querySelectorAll("#prontuario-alunos-lista select, #prontuario-busca-resultado select").forEach(sel => {
+    if (sel.value !== ra) sel.value = ra;
   });
 
   try {
@@ -490,7 +497,7 @@ async function selecionarAlunoProntuario(ra) {
 // a nota de corte junto quando ela existe na aba "Nota de corte".
 function listaEscolhasComNota(escolhas) {
   return `<div class="escolha-linha-lista">${escolhas.map(e =>
-    `<div class="escolha-linha">${escapeHtml(e.texto)}${e.nota_corte !== null ? ` · corte ${e.nota_corte}` : " · sem corte cadastrado"}</div>`
+    `<div class="escolha-linha">${e.plano ? `<strong>Plano ${escapeHtml(e.plano)}</strong> — ` : ""}${escapeHtml(e.texto)}${e.nota_corte !== null ? ` · corte ${e.nota_corte}` : " · sem corte cadastrado"}</div>`
   ).join("")}</div>`;
 }
 
