@@ -98,11 +98,10 @@
       </div>
 
       <div class="nav-item active" data-page="alunos" onclick="irPara('alunos')">🧑‍🎓 Meus Alunos</div>
-      <div class="nav-item" data-page="contas" onclick="irPara('contas')">📝 Prestação de contas</div>
-      <div class="nav-item" data-page="foco" onclick="irPara('foco')">📌 Foco da Semana</div>
-      <div class="nav-item" data-page="prontuario" onclick="irPara('prontuario')">🗂️ Prontuário do aluno</div>
-      <div class="nav-item" data-page="dashboard" onclick="irPara('dashboard')">📊 Dashboard da turma</div>
-      <div class="nav-item" data-page="guias" onclick="irPara('guias')">📚 Guias</div>
+      <div class="nav-item disabled" title="Ainda não disponível">📝 Prestação de contas <span class="em-breve">em breve</span></div>
+      <div class="nav-item disabled" title="Ainda não disponível">📌 Foco da Semana <span class="em-breve">em breve</span></div>
+      <div class="nav-item disabled" title="Ainda não disponível">🗂️ Prontuário do aluno <span class="em-breve">em breve</span></div>
+      <div class="nav-item disabled" title="Ainda não disponível">📊 Dashboard da turma <span class="em-breve">em breve</span></div>
 
       <button class="btn ghost full" style="margin-top:auto" onclick="sair()">Sair</button>
     </div>
@@ -116,207 +115,21 @@
         <div id="alunos-loading" class="hint">Carregando...</div>
         <div id="alunos-vazio" class="hint" style="display:none">Nenhum aluno encontrado com seu nome na coluna Tutor(a) da Página1.</div>
         <table id="alunos-tabela" style="display:none">
-          <thead><tr><th>RA</th><th>Nome</th><th>Série</th><th>Praça</th><th>Preenchimento</th><th>Quadrante</th><th>Atenção</th></tr></thead>
+          <thead><tr><th>RA</th><th>Nome</th><th>Série</th><th>Cidade</th><th>Hub</th><th>Acesso</th></tr></thead>
           <tbody id="alunos-tbody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
 
-      <!-- ===================== PRESTAÇÃO DE CONTAS ===================== -->
-      <div id="page-contas" class="page" style="display:none">
-        <div class="page-header">
-          <h2>Prestação de contas</h2>
-          <p>Lance as horas da semana por tipo de serviço prestado.</p>
-        </div>
-
-        <div class="card">
-          <h3>Semana de referência</h3>
-          <label for="contas-semana">Semana</label>
-          <select id="contas-semana" onchange="atualizarBoxNF()"></select>
-
-          <div style="margin-top:16px">
-            <label style="margin-top:0">Serviços prestados</label>
-            <div id="contas-linhas"></div>
-            <button class="btn ghost small" style="margin-top:6px" onclick="adicionarLinhaServico()">+ Adicionar tipo de serviço</button>
-          </div>
-
-          <label>Outro tipo de serviço (opcional)</label>
-          <textarea id="contas-outros" rows="2" placeholder="Descreva aqui se realizou algum serviço que não está nas opções acima"></textarea>
-
-          <div id="contas-nf-box" class="nf-box" style="display:none">
-            <h3>Nota Fiscal do período</h3>
-            <p class="hint" id="contas-nf-hint" style="margin:0 0 10px"></p>
-            <div id="contas-nf-inner"></div>
-          </div>
-
-          <div class="totals-bar">
-            <div class="tot"><div class="label">Soma das horas</div><div class="value" id="contas-tot-horas">0:00</div></div>
-            <div class="tot"><div class="label">Valor estimado</div><div class="value" id="contas-tot-valor">R$ 0,00</div></div>
-          </div>
-          <div id="contas-aviso-limite" class="erro" style="display:none">⚠️ Você ultrapassou o limite de 20:00 horas nessa semana. O excedente fica sujeito à aprovação.</div>
-          <p class="hint" id="contas-valor-hora-hint"></p>
-
-          <button class="btn full" style="margin-top:12px" onclick="enviarPrestacaoContasUI()">Enviar prestação de contas</button>
-        </div>
-
-        <div class="card">
-          <h3>Histórico</h3>
-          <p class="hint">Status da validação e valor estimado por semana enviada.</p>
-          <div id="contas-historico-loading" class="hint">Carregando...</div>
-          <table id="contas-historico-tabela" style="display:none">
-            <thead><tr><th>Semana</th><th>Enviada em</th><th class="num">Horas</th><th class="num">Valor</th><th>Status</th></tr></thead>
-            <tbody id="contas-historico-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- ===================== FOCO DA SEMANA ===================== -->
-      <div id="page-foco" class="page" style="display:none">
-        <div class="page-header">
-          <h2>Foco da Semana</h2>
-          <p>O que precisa da sua atenção esta semana.</p>
-        </div>
-
-        <div id="foco-loading" class="hint">Carregando...</div>
-
-        <div id="foco-conteudo" style="display:none">
-          <div class="card">
-            <h3>📌 Combinados com prazo</h3>
-            <p class="hint">Vem do Prontuário — só aparece quando você marca um prazo de retorno num combinado.</p>
-            <div id="foco-combinados-lista"></div>
-          </div>
-
-          <div class="card">
-            <h3>🎯 Alertas de estratégia de vestibular</h3>
-            <p class="hint">Aluno escolheu um desses cursos, mas a nota ainda não é suficiente — pode valer uma conversa sobre plano B.</p>
-            <div id="foco-alertas-lista"></div>
-          </div>
-
-          <div class="card">
-            <h3>🦉 Sinais da conversa com a Coruja</h3>
-            <p class="hint">Momentos sinalizados na conversa do aluno com a Coruja (resistência a mudar de cidade, insegurança com a nota, etc.).</p>
-            <div id="foco-coruja-lista"></div>
-          </div>
-
-          <div class="card">
-            <h3>🗺️ Alertas da Rodada Estratégica</h3>
-            <p class="hint">Vem do board de Rodadas Estratégicas no Monday — mobilidade e encaminhamento do grupo.</p>
-            <div id="foco-rodada-lista"></div>
-          </div>
-
-          <div class="card">
-            <h3>🎂 Aniversariantes</h3>
-            <p class="hint">Alunos com aniversário nos próximos 7 dias.</p>
-            <div id="foco-aniversariantes-lista"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== PRONTUÁRIO DO ALUNO ===================== -->
-      <div id="page-prontuario" class="page" style="display:none">
-        <div class="page-header">          <h2>Prontuário do aluno</h2>
-          <p>Histórico de contatos por aluno — fica registrado mesmo depois de resolvido.</p>
-        </div>
-
-        <div class="prontuario-layout">
-          <!-- Coluna da esquerda: lista (tutor) ou busca (coordenação) -->
-          <div>
-            <!-- Tutor: lista os alunos alocados a ele (mesma fonte do Meus Alunos) -->
-            <div id="prontuario-lista-tutor" class="card" style="display:none">
-              <h3>Seus alunos</h3>
-              <p class="hint">Selecione um aluno para ver ou registrar no prontuário.</p>
-              <div id="prontuario-alunos-loading" class="hint">Carregando...</div>
-              <div id="prontuario-alunos-lista" class="aluno-list"></div>
-            </div>
-
-            <!-- Coordenação: busca por nome ou RA, qualquer aluno -->
-            <div id="prontuario-busca-coordenacao" class="card" style="display:none">
-              <h3>Buscar aluno</h3>
-              <p class="hint">Busque por nome ou RA para ver o prontuário de qualquer aluno.</p>
-              <label for="prontuario-busca-input">Nome ou RA</label>
-              <input id="prontuario-busca-input" type="text" placeholder="Ex.: Ana Julia ou 202222344">
-              <button class="btn ghost full" style="margin-top:10px" onclick="buscarAlunosProntuarioCoordenacao()">Buscar</button>
-              <div id="prontuario-busca-resultado" class="aluno-list" style="margin-top:12px"></div>
-            </div>
-          </div>
-
-          <!-- Coluna da direita: detalhe do prontuário do aluno selecionado -->
-          <div id="prontuario-detail" class="card">
-            <p class="hint">Selecione um aluno para ver o prontuário.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== DASHBOARD DA TURMA ===================== -->
-      <div id="page-dashboard" class="page" style="display:none">
-        <div class="page-header">
-          <h2>Dashboard da turma</h2>
-          <p>Andamento dos alunos sob sua responsabilidade.</p>
-        </div>
-
-        <div id="dashboard-loading" class="hint">Carregando...</div>
-
-        <div id="dashboard-conteudo" style="display:none">
-          <!-- ===== Estratégias de Vestibular — tutor e coordenação ===== -->
-          <div class="card">
-            <h3>Estratégias de Vestibular</h3>
-            <p class="hint">Direto da base de análise da coordenação — Evo Enem priorizado, quadrantes Q1-Q4.</p>
-
-            <div id="dash-vest-filtro-praca" style="display:none; margin-bottom:14px">
-              <label style="margin-top:0">Filtrar por praça</label>
-              <select id="dash-vest-praca" onchange="carregarDashboardVestibular()">
-                <option value="">Todas as praças</option>
-                <option value="SÃO PAULO">São Paulo</option>
-                <option value="BELO HORIZONTE">Belo Horizonte</option>
-                <option value="SÃO JOSÉ DOS CAMPOS">São José dos Campos</option>
-                <option value="RIO DE JANEIRO">Rio de Janeiro</option>
-              </select>
-            </div>
-
-            <div id="dash-vest-loading" class="hint">Carregando...</div>
-
-            <div id="dash-vest-conteudo" style="display:none">
-              <div id="dash-vest-preenchimento"></div>
-
-              <h3 style="margin-top:22px">Quadrantes</h3>
-              <p class="hint" id="dash-vest-nota-total-hint"></p>
-              <div class="quad-grid" id="dash-vest-quadrantes"></div>
-
-              <div id="dash-vest-tabela-tutores" style="margin-top:16px"></div>
-
-              <div id="dash-vest-drill" style="display:none; margin-top:16px">
-                <div id="dash-vest-drill-tabela"></div>
-                <h3 id="dash-vest-drill-titulo"></h3>
-                <div id="dash-vest-drill-lista" class="aluno-list"></div>
-              </div>
-            </div>
-          </div>
-
-          <div id="dash-secao-tutor">
-            <div class="stat-grid">
-              <div class="stat-tile"><div class="label">Alunos na turma</div><div class="value" id="dash-total-alunos">—</div></div>
-              <div class="stat-tile"><div class="label">Destaques atuais</div><div class="value" id="dash-destaques">—</div></div>
-              <div class="stat-tile"><div class="label">Sem retorno &gt; 7 dias</div><div class="value" id="dash-sem-retorno">—</div></div>
-            </div>
-
-            <!-- Pontos de atenção ficam por último, não no topo -->
-            <div class="card" id="dash-sem-retorno-card" style="display:none">
-              <h3>Quem precisa de atenção</h3>
-              <p class="hint">Alunos sem nenhum registro no prontuário há mais de 7 dias.</p>
-              <div id="dash-sem-retorno-lista" class="aluno-list"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===================== GUIAS ===================== -->
-      <div id="page-guias" class="page" style="display:none">
-        <div class="page-header">
-          <h2>Guias</h2>
-          <p>Materiais de apoio pra conversar sobre plano B em cursos concorridos.</p>
-        </div>
-        <div id="guias-loading" class="hint">Carregando...</div>
-        <div id="guias-lista"></div>
-      </div>
+<!-- Janela do código de acesso do aluno -->
+<div id="modal-codigo" class="modal-overlay" style="display:none" onclick="if(event.target===this)fecharModalCodigo()">
+  <div class="modal">
+    <h3 id="modal-codigo-titulo">Código de acesso</h3>
+    <div id="modal-codigo-corpo"></div>
+    <div class="modal-botoes">
+      <button class="btn ghost" onclick="fecharModalCodigo()">Fechar</button>
     </div>
   </div>
 </div>
